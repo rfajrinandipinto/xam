@@ -1,8 +1,8 @@
 export default function Example() {
     return (
-      <>
+      <div className="min-h-full bg-gray-900">
        
-        <div className="flex min-h-full flex-col justify-center align-middle py-12 sm:px-6 lg:px-8">
+        <div className="flex min-h-full flex-col justify-center align-middle py-12 sm:px-6 lg:px-8 ">
           <div className="sm:mx-auto sm:w-full sm:max-w-md">
             <img
               className="mx-auto h-12 w-auto"
@@ -60,7 +60,7 @@ export default function Example() {
             </div>
           </div>
         </div>
-      </>
+      </div>
     )
   }
   
