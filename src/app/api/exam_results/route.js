@@ -6,6 +6,7 @@ export async function GET(request) {
     try {
 
         const studentID = request.nextUrl.searchParams.get("studentID");
+        const seriesID = request.nextUrl.searchParams.get("seriesID");
 
         if (studentID){
 
@@ -16,11 +17,10 @@ export async function GET(request) {
                 exam_series.name as series_name,
                 exam.name as exam_name,
                 exam_grade.*
-       
                 
-                 FROM exam_results
+                FROM exam_results
 
-                  INNER JOIN 
+                INNER JOIN 
                     exam_subject ON exam_results.subject_id = exam_subject.id
                  INNER JOIN 
                     exam_series ON exam_subject.exam_series_id = exam_series.id
@@ -28,8 +28,6 @@ export async function GET(request) {
                     exam ON exam_series.exam_id = exam.id
                 LEFT JOIN 
                     exam_grade ON exam_results.marks >= exam_grade.percentage
-                 
-                 
                  WHERE student_id = ${studentID}
                  
                  ORDER BY 
@@ -37,6 +35,62 @@ export async function GET(request) {
 LIMIT 1
 `);
             return NextResponse.json({ exam_results: rows });
+
+        } else if(seriesID) {
+
+//             const [rows] = await pool.query(`
+//                 SELECT 
+//                 students.*,
+//                 exam_results.*,
+//                 exam_subject.description,
+//                 exam_series.name as series_name,
+//                 exam.name as exam_name,
+//                 exam_grade.*
+
+//                 FROM exam_results
+
+//                 LEFT JOIN 
+//                     exam_subject ON exam_results.subject_id = exam_subject.id
+//                 LEFT JOIN 
+//                     exam_series ON exam_subject.exam_series_id = exam_series.id
+//                 LEFT JOIN 
+//                     exam ON exam_series.exam_id = exam.id
+//                 LEFT JOIN 
+//                     exam_grade ON exam_results.marks >= exam_grade.percentage
+//                 LEFT JOIN 
+//                     students ON exam_results.student_id >= students.id
+//                     where exam_series.id = 6
+//                 ORDER BY 
+//                 exam_grade.percentage DESC 
+// `);
+
+//     SELECT * from exam_subject where exam_subject.exam_series_id = 4
+
+
+const [rows] = await pool.query(`
+    SELECT 
+        students.*,
+        exam_results.*, 
+        exam_subject.description,
+        exam_series.name as es_name,
+        exam_series.id as es_id
+    from exam_results
+    
+    LEFT JOIN 
+        exam_subject ON exam_results.subject_id = exam_subject.id
+    LEFT JOIN
+        exam_series ON exam_subject.exam_series_id = exam_series.id
+    
+    WHERE 
+        exam_series.id = 4
+    
+
+
+   
+`);
+            return NextResponse.json({ exam_results: rows });
+
+          
 
         } else {
 

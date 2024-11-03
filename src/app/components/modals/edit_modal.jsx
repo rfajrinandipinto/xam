@@ -1,42 +1,68 @@
-import { Fragment, useState } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import {
-  ExclamationTriangleIcon,
+  PencilIcon,
   XMarkIcon,
   UserPlusIcon,
 } from "@heroicons/react/24/outline";
+import { useAlert } from "@/app/context/AlertContext";
 
-export default function Add_students({ open, setOpen }) {
-  const [idno, setIDno] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+export default function Edit_modal({
+  open,
+  setOpen,
+  page,
+  fields,
+  studentData,
+}) {
+  // Initialize form data with existing student data
+  const initialFormData = fields.reduce(
+    (acc, field) => ({ ...acc, [field.name]: studentData[field.name] || "" }),
+    {}
+  );
+
+  const [formData, setFormData] = useState(initialFormData);
+
+  const { showAlert } = useAlert();
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const studentData = {
-      idno,
-      name,
-      phone,
-    };
+    console.log(formData);
 
     try {
-      const res = await fetch("/api/students", {
-        method: "POST",
+      const res = await fetch(`/api/students/${studentData.studentid}`, {
+        method: "PUT", // Use PUT for updates
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(studentData),
+        body: JSON.stringify(formData),
       });
 
       if (res.ok) {
-        console.log("Student created successfully");
+        // Student update succeeded
+        showAlert("success", "Student updated successfully");
+        console.log("Student updated successfully");
+
+        // Close the modal and reset form data
         setOpen(false);
+        setFormData(initialFormData);
       } else {
+        // Student update failed, get the error message from the response
         const errorData = await res.json();
-        console.error("Error creating student:", errorData.error);
+        showAlert("error", errorData.error || "Error updating student");
+        console.error("Error updating student:", errorData.error);
       }
     } catch (error) {
+      // Handle network or unexpected errors
+      showAlert("error", "Request failed. Please try again.");
       console.error("Request failed:", error);
     }
   };
@@ -80,9 +106,9 @@ export default function Add_students({ open, setOpen }) {
                     </button>
                   </div>
                   <div className="sm:flex sm:items-start">
-                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                      <UserPlusIcon
-                        className="h-6 w-6 text-blue-600"
+                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-yellow-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <PencilIcon
+                        className="h-6 w-6 text-yellow-600"
                         aria-hidden="true"
                       />
                     </div>
@@ -91,77 +117,39 @@ export default function Add_students({ open, setOpen }) {
                         as="h3"
                         className="text-lg font-medium leading-6 text-gray-900 mt-2 mb-3"
                       >
-                        Add Students
+                        Edit Student
                       </Dialog.Title>
                       <div className="mt-2 w-full">
-                        <div className="mb-3">
-                          <label
-                            htmlFor="email"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            ID
-                          </label>
-                          <div className="mt-1">
-                            <input
-                              type="text"
-                              name="idno"
-                              id="idno"
-                              value={idno}
-                              onChange={(e) => setIDno(e.target.value)}
-                              required
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
-                            />
+                        {fields.map((field, index) => (
+                          <div key={index} className="mb-3">
+                            <label
+                              htmlFor={field.name}
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              {field.label}
+                            </label>
+                            <div className="mt-1">
+                              <input
+                                type={field.type}
+                                name={field.name}
+                                id={field.name}
+                                required
+                                value={formData[field.name]}
+                                onChange={handleInputChange}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
+                              />
+                            </div>
                           </div>
-                        </div>
-
-                        <div className="mb-3">
-                          <label
-                            htmlFor="email"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            Name
-                          </label>
-                          <div className="mt-1">
-                            <input
-                              type="text"
-                              name="name"
-                              id="name"
-                              value={name}
-                              onChange={(e) => setName(e.target.value)}
-                              required
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mb-3">
-                          <label
-                            htmlFor="email"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            Phone
-                          </label>
-                          <div className="mt-1">
-                            <input
-                              type="text"
-                              name="phone"
-                              id="phone"
-                              value={phone}
-                              onChange={(e) => setPhone(e.target.value)}
-                              required
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
-                            />
-                          </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>
                   <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                     <button
                       type="submit"
-                      className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+                      className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
                     >
-                      Submit
+                      Update
                     </button>
                     <button
                       type="button"

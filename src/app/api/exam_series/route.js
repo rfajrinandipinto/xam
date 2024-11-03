@@ -6,7 +6,7 @@ export async function GET(request) {
     try {
         const examID = request.nextUrl.searchParams.get("examID");
 
-        if (examID){
+        if (examID && examID != 0){
 
             const [rows] = await pool.query('SELECT exam_series.id, exam_series.name, exam.name as exam_name FROM exam_series INNER JOIN exam ON exam_series.exam_id = exam.id WHERE exam_id = ?', [examID]);
             return NextResponse.json({ exam_series: rows });

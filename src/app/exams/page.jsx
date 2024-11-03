@@ -15,12 +15,25 @@ export default function StudentsList() {
   const [examSeries, setExamSeries] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSeriesModalOpen, setIsSeriesModalOpen] = useState(false);
+  const [exam, setExam] = useState([]);
 
   useEffect(() => {
     const fetchExams = async () => {
       const response = await fetch("/api/exams");
       const data = await response.json();
-      setExams(data.exams || []);
+      setExams([
+        {
+          id: 0,
+          name: "ALL",
+          created_by: null,
+          updated_by: null,
+          created_at: "2024-10-19T19:27:19.000Z",
+          last_update: "2024-10-19T19:27:19.000Z",
+          notes: null,
+          active: "1",
+        },
+        ...data.exams,
+      ]);
     };
 
     fetchExams();
@@ -33,6 +46,17 @@ export default function StudentsList() {
 
     fetchExamSeries();
   }, []);
+
+  useEffect(() => {
+    const fetchExamSeries = async () => {
+      const response = await fetch(`/api/exam_series?examID=${exam}`);
+      const data = await response.json();
+      console.log(data);
+      setExamSeries(data.exam_series || []);
+    };
+
+    fetchExamSeries();
+  }, [exam]);
 
   return (
     <>
@@ -63,9 +87,10 @@ export default function StudentsList() {
                   name="location"
                   className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
                   defaultValue="Canada"
+                  onChange={(e) => setExam(e.target.value)}
                 >
                   {exams.map((exam) => (
-                    <option>{exam.name}</option>
+                    <option value={exam.id}>{exam.name}</option>
                   ))}
                 </select>
               </div>

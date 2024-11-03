@@ -1,24 +1,16 @@
 "use client";
 
 import { Transition, Listbox } from "@headlessui/react";
-import { Fragment, useState } from "react";
+import { Fragment, useState, useEffect } from "react";
+import Link from "next/link";
 
 import {
-  Bars3BottomLeftIcon,
-  BellIcon,
-  CalendarIcon,
-  ChartBarIcon,
-  FolderIcon,
-  HomeIcon,
-  InboxIcon,
-  XMarkIcon,
   CheckIcon,
   ChevronUpDownIcon,
-  CursorArrowRaysIcon,
   EnvelopeOpenIcon,
   UsersIcon,
   PlusIcon as PlusIconOutline,
-  ExclamationTriangleIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import {
   MagnifyingGlassIcon,
@@ -74,6 +66,45 @@ function classNames(...classes) {
 
 export default function Home() {
   const [selected, setSelected] = useState(people2[3]);
+
+  const [students, setStudents] = useState([]);
+  const [examSubject, setExamSubject] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const [examResults, setExamResults] = useState([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const response = await fetch("/api/students");
+      const data = await response.json();
+      setStudents(data.students || []);
+    };
+
+    fetchUsers();
+
+    const fetchExamSubject = async () => {
+      const response = await fetch(`/api/exam_subject?seriesID=4`);
+      const data = await response.json();
+
+      setExamSubject(data.exam_subject || []);
+    };
+
+    fetchExamSubject();
+
+    const fetchExamResults = async () => {
+      const response = await fetch(`/api/exam_results?seriesID=4`);
+      const data = await response.json();
+      console.log(data);
+      setExamResults(data.exam_results || []);
+    };
+
+    fetchExamResults();
+  }, []);
+
+  // students.forEach((student) => {
+  //   console.log("test");
+  // });
+
   return (
     <>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 pb-4">
@@ -164,13 +195,6 @@ export default function Home() {
               >
                 Add Exam
               </button>
-
-              {/* <button
-                        type="button"
-                        className="inline-flex items-center rounded-full border border-transparent bg-indigo-600 p-3 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                      >
-                        <PlusIconOutline className="h-6 w-6" aria-hidden="true" />
-                      </button> */}
             </div>
 
             <div>
@@ -549,6 +573,71 @@ export default function Home() {
                               <td className="px-2"> 3.5</td>
                             </tr>
                           </table>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr className="divide-x divide-gray-200">
+                      <th
+                        scope="col"
+                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 lg:pl-8"
+                      >
+                        Students
+                      </th>
+
+                      {examSubject.map((subject) => (
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5  text-sm font-semibold text-gray-900 text-center"
+                        >
+                          {subject.code}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {students.map((student) => (
+                      <tr
+                        key={student.studentidno}
+                        className="divide-x divide-gray-200"
+                      >
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
+                          {student.name}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {student.idno}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {student.phone}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          1
+                        </td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-center text-sm font-medium ">
+                          <a
+                            href="#"
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            <Link href={`/students/${student.id}`}>
+                              <button
+                                type="button"
+                                className="inline-flex items-center rounded-full border border-transparent bg-indigo-600 p-1 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                              >
+                                <InformationCircleIcon
+                                  className="h-5 w-5"
+                                  aria-hidden="true"
+                                />
+                              </button>
+                            </Link>
+
+                            <span className="sr-only">
+                              , {student.studentname}
+                            </span>
+                          </a>
                         </td>
                       </tr>
                     ))}

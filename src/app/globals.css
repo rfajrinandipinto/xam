@@ -18,3 +18,16 @@ body {
     text-wrap: balance;
   }
 }
+
+@keyframes fade-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.fade-out {
+  animation: fade-out 0.5s forwards;
+}

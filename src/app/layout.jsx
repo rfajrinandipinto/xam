@@ -1,7 +1,11 @@
+"use client";
+
 import localFont from "next/font/local";
 import "./globals.css";
 import Sidebar from "./components/sidebar";
 import Navbar from "./components/navbar";
+import { AlertProvider, useAlert } from "./context/AlertContext";
+import Alert from "./components/alert";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -14,35 +18,45 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-export const metadata = {
-  title: "XAM",
-  description: "XAM",
-};
-
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased relative`}
       >
-        <div className="">
-          {/* Sidebar */}
-          <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
-            <Sidebar></Sidebar>
-          </div>
-
-          {/* Main Container */}
-          <div className="flex flex-col md:pl-64">
-            {/* Navbar */}
-            <Navbar></Navbar>
-
-            {/* Main Content */}
-            <main className="flex-1">
-              <div className="py-6">{children}</div>
-            </main>
-          </div>
-        </div>
+        <AlertProvider>
+          <AppContent>{children}</AppContent>
+        </AlertProvider>
       </body>
     </html>
+  );
+}
+
+function AppContent({ children }) {
+  const { alert, dismissAlert } = useAlert();
+
+  return (
+    <div className="relative">
+      {alert && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+          <Alert
+            type={alert.type}
+            message={alert.message}
+            dismiss={dismissAlert}
+          />
+        </div>
+      )}
+      <div className="">
+        <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
+          <Sidebar />
+        </div>
+        <div className="flex flex-col md:pl-64">
+          <Navbar />
+          <main className="flex-1">
+            <div className="py-6">{children}</div>
+          </main>
+        </div>
+      </div>
+    </div>
   );
 }
