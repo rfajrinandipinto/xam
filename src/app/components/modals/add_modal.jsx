@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import {
   ExclamationTriangleIcon,
@@ -7,7 +7,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAlert } from "@/app/context/AlertContext";
 
-export default function Add_modal({ open, setOpen, page, fields }) {
+export default function Add_modal({ open, setOpen, page, fields, dropdowns }) {
   const initialFormData = fields.reduce(
     (acc, field) => ({ ...acc, [field.name]: "" }),
     {}
@@ -15,6 +15,22 @@ export default function Add_modal({ open, setOpen, page, fields }) {
   const [formData, setFormData] = useState(initialFormData);
 
   const { showAlert } = useAlert();
+
+  useEffect(() => {
+    if (open) {
+      const updatedFormData = { ...initialFormData };
+      fields.forEach((field) => {
+        if (
+          dropdowns &&
+          dropdowns[field.name] &&
+          dropdowns[field.name].length > 0
+        ) {
+          updatedFormData[field.name] = dropdowns[field.name][0].value;
+        }
+      });
+      setFormData(updatedFormData);
+    }
+  }, [open, fields, dropdowns]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -27,8 +43,10 @@ export default function Add_modal({ open, setOpen, page, fields }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    console.log(formData);
+
     try {
-      const res = await fetch("/api/students", {
+      const res = await fetch(`/api/${page}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -37,17 +55,22 @@ export default function Add_modal({ open, setOpen, page, fields }) {
       });
 
       if (res.ok) {
-        // Student creation succeeded
-        showAlert("success", "Student created successfully");
-        console.log("Student created successfully");
+        // Entity creation succeeded
+        showAlert(
+          "success",
+          `${page.charAt(0).toUpperCase() + page.slice(1)} created successfully`
+        );
+        console.log(
+          `${page.charAt(0).toUpperCase() + page.slice(1)} created successfully`
+        );
         setOpen(false);
         setFormData(initialFormData);
         setOpen(true);
       } else {
-        // Student creation failed, get the error message from the response
+        // Entity creation failed, get the error message from the response
         const errorData = await res.json();
-        showAlert("error", errorData.error || "Error creating student");
-        console.error("Error creating student:", errorData.error);
+        showAlert("error", errorData.error || `Error creating ${page}`);
+        console.error(`Error creating ${page}:`, errorData.error);
       }
     } catch (error) {
       // Handle network or unexpected errors
@@ -106,7 +129,7 @@ export default function Add_modal({ open, setOpen, page, fields }) {
                         as="h3"
                         className="text-lg font-medium leading-6 text-gray-900 mt-2 mb-3"
                       >
-                        Add Students
+                        Add {page.charAt(0).toUpperCase() + page.slice(1)}
                       </Dialog.Title>
                       <div className="mt-2 w-full">
                         {fields.map((field, index) => (
@@ -118,15 +141,32 @@ export default function Add_modal({ open, setOpen, page, fields }) {
                               {field.label}
                             </label>
                             <div className="mt-1">
-                              <input
-                                type={field.type}
-                                name={field.name}
-                                id={field.name}
-                                required
-                                value={formData[field.name]}
-                                onChange={handleInputChange}
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
-                              />
+                              {dropdowns && dropdowns[field.name] ? (
+                                <select
+                                  name={field.name}
+                                  id={field.name}
+                                  required
+                                  value={formData[field.name]}
+                                  onChange={handleInputChange}
+                                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
+                                >
+                                  {dropdowns[field.name].map((option, idx) => (
+                                    <option key={idx} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  type={field.type}
+                                  name={field.name}
+                                  id={field.name}
+                                  required
+                                  value={formData[field.name]}
+                                  onChange={handleInputChange}
+                                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
+                                />
+                              )}
                             </div>
                           </div>
                         ))}

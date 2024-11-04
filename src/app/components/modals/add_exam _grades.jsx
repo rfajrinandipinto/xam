@@ -9,36 +9,37 @@ import {
 export default function Add_exams_grades({
   open,
   setOpen,
-  student_id,
-  subject,
+  studentId,
+  subjects,
 }) {
-  const [code, setCode] = useState("");
-  const [subjectID, setSubjectID] = useState(3);
-  const [description, setDescription] = useState("");
-
-  const [grades, setGrades] = useState("");
+  const [subjectID, setSubjectID] = useState(subjects[0]?.examsubjid || "");
+  const [grades, setGrades] = useState([]);
   const [mark, setMark] = useState(0);
-  const [selectedGrade, setSelectedGrade] = useState(0);
+  const [selectedGrade, setSelectedGrade] = useState({});
 
   useEffect(() => {
     const fetchGrades = async () => {
-      const response = await fetch(`/api/exam_grades?subjectID=${subjectID}`);
+      const response = await fetch(
+        `/api/examfinalgrade?subjectID=${subjectID}`
+      );
       const data = await response.json();
 
-      setGrades(data.exam_grades || []);
+      setGrades(data.examFinalGrades || []);
     };
 
-    fetchGrades();
+    if (subjectID) {
+      fetchGrades();
+    }
   }, [subjectID]);
 
   const findGrade = (mark) => {
     const sortedGrades = [...grades].sort(
-      (a, b) => b.percentage - a.percentage
+      (a, b) => b.finalpercent - a.finalpercent
     );
 
-    const foundGrade = sortedGrades.find((grade) => mark >= grade.percentage);
+    const foundGrade = sortedGrades.find((grade) => mark >= grade.finalpercent);
 
-    setSelectedGrade(foundGrade);
+    setSelectedGrade(foundGrade || {});
   };
 
   const handleInputChange = (e) => {
@@ -49,38 +50,41 @@ export default function Add_exams_grades({
       findGrade(mark);
     } else {
       setMark(0);
-      setSelectedGrade(0); // Reset if input is not a valid number
+      setSelectedGrade({}); // Reset if input is not a valid number
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const subject_id = subjectID;
-    const marks = mark;
-
-    const examSubjectData = {
-      student_id,
-      subject_id,
-      marks,
+    const examResultData = {
+      examseriesid: selectedGrade.examseriesid,
+      examsubjid: subjectID,
+      studentid: studentId,
+      marks: mark,
+      subjgpa: selectedGrade.overallgradepoint,
+      subjgrade: selectedGrade.overallgrade,
+      subjresults: selectedGrade.overallrank,
     };
 
+    console.log(examResultData);
+
     try {
-      const res = await fetch("/api/exam_results", {
+      const res = await fetch("/api/examresults", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(examSubjectData),
+        body: JSON.stringify(examResultData),
       });
 
       if (res.ok) {
-        console.log("Exam Subject created successfully");
+        console.log("Exam result created successfully");
         window.location.reload();
         setOpen(false);
       } else {
         const errorData = await res.json();
-        console.error("Error creating exam series :", errorData.error);
+        console.error("Error creating exam result:", errorData.error);
       }
     } catch (error) {
       console.error("Request failed:", error);
@@ -142,7 +146,7 @@ export default function Add_exams_grades({
                       <div className="mt-2 w-full flex">
                         <div className="mr-5">
                           <label
-                            htmlFor="email"
+                            htmlFor="subject"
                             className="block text-sm font-medium text-gray-700"
                           >
                             Subject
@@ -152,15 +156,21 @@ export default function Add_exams_grades({
                             name="subject"
                             className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
                             onChange={(e) => setSubjectID(e.target.value)}
+                            value={subjectID}
                           >
-                            {subject.map((sub) => (
-                              <option value={sub.id}>{sub.description}</option>
+                            {subjects.map((sub) => (
+                              <option
+                                key={sub.examsubjid}
+                                value={sub.examsubjid}
+                              >
+                                ({sub.subjcode}) {sub.subjdesc}
+                              </option>
                             ))}
                           </select>
                         </div>
                         <div className="">
                           <label
-                            htmlFor="email"
+                            htmlFor="mark"
                             className="block text-sm font-medium text-gray-700"
                           >
                             Marks
@@ -186,18 +196,18 @@ export default function Add_exams_grades({
                       <div className="mt-2 w-full flex">
                         <div className="mr-5">
                           <label
-                            htmlFor="email"
+                            htmlFor="grade"
                             className="block text-sm font-medium text-gray-700 mb-1"
                           >
                             Grade
                           </label>
-                          <div className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2   text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:w-auto sm:text-5xl font-bold mr-5">
-                            {selectedGrade.grade}
+                          <div className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:w-auto sm:text-5xl font-bold mr-5">
+                            {selectedGrade.overallgrade || "N/A"}
                           </div>
                         </div>
                         <div className=" mr-3">
                           <label
-                            htmlFor="email"
+                            htmlFor="gpa"
                             className="block text-sm font-medium text-gray-700"
                           >
                             GPA
@@ -205,17 +215,17 @@ export default function Add_exams_grades({
                           <div className="mt-1">
                             <input
                               type="text"
-                              name="description"
-                              id="description"
-                              value={selectedGrade.point}
-                              required
+                              name="gpa"
+                              id="gpa"
+                              value={selectedGrade.overallgradepoint || ""}
+                              readOnly
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
                             />
                           </div>
                         </div>
                         <div className="">
                           <label
-                            htmlFor="email"
+                            htmlFor="rank"
                             className="block text-sm font-medium text-gray-700"
                           >
                             Rank
@@ -223,10 +233,10 @@ export default function Add_exams_grades({
                           <div className="mt-1">
                             <input
                               type="text"
-                              name="description"
-                              id="description"
-                              value={selectedGrade.rank}
-                              required
+                              name="rank"
+                              id="rank"
+                              value={selectedGrade.overallrank || ""}
+                              readOnly
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
                             />
                           </div>

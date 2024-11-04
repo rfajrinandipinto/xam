@@ -14,6 +14,8 @@ const navigation = [
   { name: "Dashboard", href: "", icon: HomeIcon },
   { name: "Students", href: "students", icon: UsersIcon },
   { name: "Exams", href: "exams", icon: FolderIcon },
+  { name: "Series", href: "series", icon: FolderIcon },
+  { name: "Subjects", href: "subjects", icon: FolderIcon },
   { name: "Users", href: "users", icon: CalendarIcon },
   { name: "Transcripts", href: "transcripts", icon: InboxIcon },
 ];

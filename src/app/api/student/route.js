@@ -1,52 +1,35 @@
 import { NextResponse } from 'next/server';
 import pool from '@/app/lib/db';
 
-
-
-
 export async function GET(request) {
+    const search = request.nextUrl.searchParams.get('search');
+    const page = parseInt(request.nextUrl.searchParams.get('page')) || 1;
+    const limit = parseInt(request.nextUrl.searchParams.get('limit')) || 10;
+    const offset = (page - 1) * limit;
 
-    const search = request.nextUrl.searchParams.get('search'); 
+    let query = 'SELECT * FROM students';
+    let queryParams = [];
 
-    if (!search || search.trim() === '') {
-
-        const [rows] = await pool.query(`
-            SELECT * 
-            FROM students
-        `);
-
-        return NextResponse.json({ students: rows });
+    if (search && search.trim() !== '') {
+        const searchKeyword = `%${search.trim()}%`;
+        query += ' WHERE studentname LIKE ? OR studentidno LIKE ?';
+        queryParams.push(searchKeyword, searchKeyword);
     }
 
+    query += ' LIMIT ? OFFSET ?';
+    queryParams.push(limit, offset);
+
     try {
-        const searchKeyword = `%${search.trim()}%`;
-        const [rows] = await pool.query(`
-            SELECT * 
-            FROM students
-            WHERE studentname LIKE ? 
-            OR studentidno LIKE ?
-        `, [searchKeyword, searchKeyword]);
+        const [rows] = await pool.query(query, queryParams);
+        const [totalRows] = await pool.query('SELECT COUNT(*) as count FROM students');
+        const total = totalRows[0].count;
 
-        if (rows.length === 0) {
-            return NextResponse.json({ message: 'No students found' });
-        }
-
-        return NextResponse.json({ students: rows });
-
+        return NextResponse.json({ students: rows, total, page, limit });
     } catch (error) {
         console.error('Database connection error:', error.message);
         return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
-    
-    // try {
-    //     const [rows] = await pool.query('SELECT * FROM students');
-    //     return NextResponse.json({ students: rows });
-    // } catch (error) {
-    //     console.error('Database connection error:', error.message);
-    //     return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
-    // }
 }
-
 
 export async function POST(req) {
     try {

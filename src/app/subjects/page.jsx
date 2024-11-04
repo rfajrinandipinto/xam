@@ -1,172 +1,223 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import Add_exams from "../components/modals/add_exam";
+import Add_modal from "../components/modals/add_modal";
+import Edit_modal from "../components/modals/edit_modal";
+import Delete_modal from "../components/modals/delete_modal";
+import Pagination from "../components/Pagination";
+import Table from "../components/Table";
 
 import {
   PlusIcon as PlusIconOutline,
-  InformationCircleIcon,
+  MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
-import Add_exams_series from "../components/modals/add_exam _series";
 
-export default function StudentsList() {
-  const [students, setStudents] = useState([]);
-  const [exams, setExams] = useState([]);
-  const [examSeries, setExamSeries] = useState([]);
+export default function Subjects() {
+  const [subjects, setSubjects] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSeriesModalOpen, setIsSeriesModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [examSeriesOptions, setExamSeriesOptions] = useState([]);
+  const limit = 10;
+
+  const fields = [
+    {
+      label: "",
+      name: "examsubjid",
+      type: "hidden",
+    },
+    {
+      label: "Exam Series ID",
+      name: "examseriesid",
+      type: "text",
+    },
+    {
+      label: "Subject Code",
+      name: "subjcode",
+      type: "text",
+    },
+    {
+      label: "Description",
+      name: "subjdesc",
+      type: "text",
+    },
+    {
+      label: "Earned Credit",
+      name: "subjearncredit",
+      type: "number",
+    },
+  ];
 
   useEffect(() => {
-    const fetchExams = async () => {
-      const response = await fetch("/api/exams");
+    fetchSubjects();
+    fetchExamSeriesOptions();
+  }, [page, keyword]);
+
+  const columns = [
+    { Header: "ID", accessor: "examsubjid", className: "w-24 text-center" },
+    {
+      Header: "Exam Series",
+      accessor: "examseriesdescription",
+      className: "w-48 text-center",
+    },
+    {
+      Header: "Subject Code",
+      accessor: "subjcode",
+      className: "w-48 text-center",
+    },
+    {
+      Header: "Description",
+      accessor: "subjdesc",
+      className: "w-96 text-left",
+    },
+    {
+      Header: "Earned Credit",
+      accessor: "subjearncredit",
+      className: "w-24 text-center",
+    },
+  ];
+
+  const fetchExamSeriesOptions = async () => {
+    const response = await fetch("/api/examseries");
+    const data = await response.json();
+    setExamSeriesOptions(
+      data.examSeries.map((series) => ({
+        value: series.examseriesid,
+        label: series.examseriesdescription,
+      }))
+    );
+  };
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const response = await fetch("/api/examsubj");
       const data = await response.json();
-      setExams(data.exams || []);
+      setSubjects(data.examSubjs || []);
     };
 
-    fetchExams();
+    fetchSubjects();
+  }, [isModalOpen, isEditModalOpen]);
 
-    const fetchExamSeries = async () => {
-      const response = await fetch("/api/exam_series");
+  const fetchSubjects = async () => {
+    const response = await fetch(
+      `/api/examsubj?search=${keyword}&page=${page}&limit=${limit}`
+    );
+    const data = await response.json();
+    setSubjects(data.examSubjs);
+    setTotal(data.total);
+  };
+
+  const handleSearch = () => {
+    setPage(1);
+    fetchSubjects();
+  };
+
+  const totalPages = Math.ceil(total / limit);
+
+  const openEditModal = (subject) => {
+    setSelectedSubject(subject);
+    setIsEditModalOpen(true);
+  };
+
+  const openDeleteModal = (subject) => {
+    setSelectedSubject(subject);
+    setIsDeleteModalOpen(true);
+  };
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const response = await fetch("/api/examsubj");
       const data = await response.json();
-      setExamSeries(data.exam_series || []);
+      setSubjects(data.examSubjs || []);
     };
-
-    fetchExamSeries();
-  }, []);
+    fetchSubjects();
+  }, [isEditModalOpen, isModalOpen, isDeleteModalOpen]);
 
   return (
     <>
-      {isModalOpen && <Add_exams open={isModalOpen} setOpen={setIsModalOpen} />}
-      {isSeriesModalOpen && (
-        <Add_exams_series
-          open={isSeriesModalOpen}
-          setOpen={setIsSeriesModalOpen}
-          exam={exams}
+      {isModalOpen && (
+        <Add_modal
+          open={isModalOpen}
+          setOpen={setIsModalOpen}
+          page={"examsubj"}
+          fields={fields}
+          dropdowns={{ examseriesid: examSeriesOptions }}
         />
       )}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 pb-4">
-        <h1 className="text-2xl font-semibold text-gray-900 ">Exams Lists</h1>
+      {isEditModalOpen && selectedSubject && (
+        <Edit_modal
+          open={isEditModalOpen}
+          setOpen={setIsEditModalOpen}
+          page={"examsubj"}
+          fields={fields}
+          entityData={selectedSubject}
+          dropdowns={{ examseriesid: examSeriesOptions }}
+        />
+      )}
+      {isDeleteModalOpen && selectedSubject && (
+        <Delete_modal
+          open={isDeleteModalOpen}
+          setOpen={setIsDeleteModalOpen}
+          page={"examsubj"}
+          fields={fields}
+          entityData={selectedSubject}
+          dropdowns={{ examseriesid: examSeriesOptions }}
+        />
+      )}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 pb-4 w-">
+        <h1 className="text-2xl font-semibold text-gray-900 ">Exam Subjects</h1>
       </div>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
             <div className="flex justify-between">
-              <div className="w-52">
-                <label
-                  htmlFor="location"
-                  className="block text-lg font-medium text-gray-700"
-                >
-                  Exams
-                </label>
-                <select
-                  id="location"
-                  name="location"
-                  className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
-                  defaultValue="Canada"
-                >
-                  {exams.map((exam) => (
-                    <option>{exam.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end">
-                <div className="">
+              <div className="w-64">
+                <div className="flex">
+                  <input
+                    name="keyword"
+                    id="keyword"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mr-2 text-black"
+                    placeholder="search exam subjects"
+                    onChange={(e) => setKeyword(e.target.value)}
+                  />
+
                   <button
                     type="button"
-                    className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mr-3"
-                    onClick={() => setIsModalOpen(true)}
+                    className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-2 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 "
+                    onClick={handleSearch}
                   >
-                    Add Exam
-                  </button>
-                </div>
-                <div className="">
-                  <button
-                    type="button"
-                    className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-5 py-3 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    onClick={() => setIsSeriesModalOpen(true)}
-                  >
-                    Add Exam Series
+                    <MagnifyingGlassIcon className="h-5 w-5"></MagnifyingGlassIcon>
                   </button>
                 </div>
               </div>
+              <button
+                type="button"
+                className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-5 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                onClick={() => setIsModalOpen(true)}
+              >
+                Add Exam Subject
+              </button>
             </div>
           </div>
         </div>
-        <div className="mt-8 flex flex-col">
-          <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 lg:pl-8"
-                      >
-                        Exam
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        Series
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        Total Students
-                      </th>
-
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
-                      >
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {examSeries.map((series) => (
-                      <tr key={series.id}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
-                          {series.exam_name}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                          {series.name}
-                        </td>
-
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                          1
-                        </td>
-                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-center text-sm font-medium ">
-                          <a
-                            href="#"
-                            className="text-indigo-600 hover:text-indigo-900"
-                          >
-                            <Link href={`/exams/${series.id}`}>
-                              <button
-                                type="button"
-                                className="inline-flex items-center rounded-full border border-transparent bg-indigo-600 p-1 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                              >
-                                <InformationCircleIcon
-                                  className="h-5 w-5"
-                                  aria-hidden="true"
-                                />
-                              </button>
-                            </Link>
-
-                            <span className="sr-only">, {series.name}</span>
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Table
+          data={subjects}
+          columns={columns}
+          page={page}
+          limit={limit}
+          onEdit={openEditModal}
+          onDelete={openDeleteModal}
+          idAccessor="examsubjid"
+          detailPage="subjects"
+        />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
       </div>
     </>
   );

@@ -3,7 +3,6 @@ import { Dialog, Transition } from "@headlessui/react";
 import {
   ExclamationTriangleIcon,
   XMarkIcon,
-  UserPlusIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { useAlert } from "@/app/context/AlertContext";
@@ -13,17 +12,35 @@ export default function Delete_modal({
   setOpen,
   page,
   fields,
-  studentData,
+  entityData,
+  dropdowns,
 }) {
-  // Initialize form data with existing student data
+  // Initialize form data with existing entity data
   const initialFormData = fields.reduce(
-    (acc, field) => ({ ...acc, [field.name]: studentData[field.name] || "" }),
+    (acc, field) => ({ ...acc, [field.name]: entityData[field.name] || "" }),
     {}
   );
 
   const [formData, setFormData] = useState(initialFormData);
 
   const { showAlert } = useAlert();
+
+  useEffect(() => {
+    if (open) {
+      const updatedFormData = { ...initialFormData };
+      fields.forEach((field) => {
+        if (
+          dropdowns &&
+          dropdowns[field.name] &&
+          dropdowns[field.name].length > 0
+        ) {
+          updatedFormData[field.name] =
+            entityData[field.name] || dropdowns[field.name][0].value;
+        }
+      });
+      setFormData(updatedFormData);
+    }
+  }, [open, fields, dropdowns, entityData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -37,24 +54,29 @@ export default function Delete_modal({
     e.preventDefault();
 
     try {
-      const res = await fetch(`/api/students/${studentData.studentid}`, {
-        method: "DELETE", // Use PUT for updates
+      const res = await fetch(`/api/${page}/${entityData[`${page}id`]}`, {
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
       });
 
       if (res.ok) {
-        // Student update succeeded
-        showAlert("success", "Student deleted successfully");
-        console.log("Student deleted successfully");
+        // Entity deletion succeeded
+        showAlert(
+          "success",
+          `${page.charAt(0).toUpperCase() + page.slice(1)} deleted successfully`
+        );
+        console.log(
+          `${page.charAt(0).toUpperCase() + page.slice(1)} deleted successfully`
+        );
 
         setOpen(false);
       } else {
-        // Student update failed, get the error message from the response
+        // Entity deletion failed, get the error message from the response
         const errorData = await res.json();
-        showAlert("error", errorData.error || "Error deleting student");
-        console.error("Error deleting student:", errorData.error);
+        showAlert("error", errorData.error || `Error deleting ${page}`);
+        console.error(`Error deleting ${page}:`, errorData.error);
       }
     } catch (error) {
       // Handle network or unexpected errors
@@ -113,7 +135,7 @@ export default function Delete_modal({
                         as="h3"
                         className="text-lg font-medium leading-6 text-gray-900 mt-2 mb-3"
                       >
-                        Delete Student
+                        Delete {page.charAt(0).toUpperCase() + page.slice(1)}
                       </Dialog.Title>
                       <div className="mt-2 w-full">
                         {fields.map((field, index) => (
@@ -125,15 +147,33 @@ export default function Delete_modal({
                               {field.label}
                             </label>
                             <div className="mt-1">
-                              <input
-                                type={field.type}
-                                name={field.name}
-                                id={field.name}
-                                readOnly
-                                value={formData[field.name]}
-                                onChange={handleInputChange}
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
-                              />
+                              {dropdowns && dropdowns[field.name] ? (
+                                <select
+                                  name={field.name}
+                                  id={field.name}
+                                  required
+                                  value={formData[field.name]}
+                                  disabled
+                                  onChange={handleInputChange}
+                                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
+                                >
+                                  {dropdowns[field.name].map((option, idx) => (
+                                    <option key={idx} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  type={field.type}
+                                  name={field.name}
+                                  id={field.name}
+                                  readOnly
+                                  value={formData[field.name]}
+                                  onChange={handleInputChange}
+                                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
+                                />
+                              )}
                             </div>
                           </div>
                         ))}

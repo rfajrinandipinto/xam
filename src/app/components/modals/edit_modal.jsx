@@ -1,10 +1,6 @@
 import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import {
-  PencilIcon,
-  XMarkIcon,
-  UserPlusIcon,
-} from "@heroicons/react/24/outline";
+import { PencilIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useAlert } from "@/app/context/AlertContext";
 
 export default function Edit_modal({
@@ -12,17 +8,34 @@ export default function Edit_modal({
   setOpen,
   page,
   fields,
-  studentData,
+  entityData,
+  dropdowns,
 }) {
-  // Initialize form data with existing student data
   const initialFormData = fields.reduce(
-    (acc, field) => ({ ...acc, [field.name]: studentData[field.name] || "" }),
+    (acc, field) => ({ ...acc, [field.name]: entityData[field.name] || "" }),
     {}
   );
 
   const [formData, setFormData] = useState(initialFormData);
 
   const { showAlert } = useAlert();
+
+  useEffect(() => {
+    if (open) {
+      const updatedFormData = { ...initialFormData };
+      fields.forEach((field) => {
+        if (
+          dropdowns &&
+          dropdowns[field.name] &&
+          dropdowns[field.name].length > 0
+        ) {
+          updatedFormData[field.name] =
+            entityData[field.name] || dropdowns[field.name][0].value;
+        }
+      });
+      setFormData(updatedFormData);
+    }
+  }, [open, fields, dropdowns, entityData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -38,7 +51,7 @@ export default function Edit_modal({
     console.log(formData);
 
     try {
-      const res = await fetch(`/api/students/${studentData.studentid}`, {
+      const res = await fetch(`/api/${page}/${entityData[`${page}id`]}`, {
         method: "PUT", // Use PUT for updates
         headers: {
           "Content-Type": "application/json",
@@ -47,18 +60,23 @@ export default function Edit_modal({
       });
 
       if (res.ok) {
-        // Student update succeeded
-        showAlert("success", "Student updated successfully");
-        console.log("Student updated successfully");
+        // Entity update succeeded
+        showAlert(
+          "success",
+          `${page.charAt(0).toUpperCase() + page.slice(1)} updated successfully`
+        );
+        console.log(
+          `${page.charAt(0).toUpperCase() + page.slice(1)} updated successfully`
+        );
 
         // Close the modal and reset form data
         setOpen(false);
         setFormData(initialFormData);
       } else {
-        // Student update failed, get the error message from the response
+        // Entity update failed, get the error message from the response
         const errorData = await res.json();
-        showAlert("error", errorData.error || "Error updating student");
-        console.error("Error updating student:", errorData.error);
+        showAlert("error", errorData.error || `Error updating ${page}`);
+        console.error(`Error updating ${page}:`, errorData.error);
       }
     } catch (error) {
       // Handle network or unexpected errors
@@ -117,7 +135,7 @@ export default function Edit_modal({
                         as="h3"
                         className="text-lg font-medium leading-6 text-gray-900 mt-2 mb-3"
                       >
-                        Edit Student
+                        Edit {page.charAt(0).toUpperCase() + page.slice(1)}
                       </Dialog.Title>
                       <div className="mt-2 w-full">
                         {fields.map((field, index) => (
@@ -129,15 +147,32 @@ export default function Edit_modal({
                               {field.label}
                             </label>
                             <div className="mt-1">
-                              <input
-                                type={field.type}
-                                name={field.name}
-                                id={field.name}
-                                required
-                                value={formData[field.name]}
-                                onChange={handleInputChange}
-                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
-                              />
+                              {dropdowns && dropdowns[field.name] ? (
+                                <select
+                                  name={field.name}
+                                  id={field.name}
+                                  required
+                                  value={formData[field.name]}
+                                  onChange={handleInputChange}
+                                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
+                                >
+                                  {dropdowns[field.name].map((option, idx) => (
+                                    <option key={idx} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  type={field.type}
+                                  name={field.name}
+                                  id={field.name}
+                                  required
+                                  value={formData[field.name]}
+                                  onChange={handleInputChange}
+                                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
+                                />
+                              )}
                             </div>
                           </div>
                         ))}

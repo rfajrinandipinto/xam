@@ -6,7 +6,7 @@ export async function GET(request, { params }) {
     const { id } = params;  
   
     try {
-      const [rows] = await pool.query('SELECT * FROM students WHERE id = ?', [id]);
+      const [rows] = await pool.query('SELECT * FROM students WHERE studentid = ?', [id]);
       
       if (rows.length === 0) {
         return NextResponse.json({ error: 'Student not found' }, { status: 404 });
