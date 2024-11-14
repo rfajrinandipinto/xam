@@ -26,7 +26,7 @@ export default function Example() {
         showAlert("Login successful!", "success");
         const data = await response.json();
         Cookies.set("token", data.token, { expires: 1 }); // Store token in cookies for 1 day
-        router.push("/dashboard");
+        router.push("/");
       } else {
         const errorData = await response.json();
         showAlert(errorData.message, "error");
