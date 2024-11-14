@@ -29,11 +29,6 @@ export default function Sidebar() {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-gray-800">
       <div className="flex justify-center h-16 flex-shrink-0 items-center bg-gray-900 px-4">
-        {/* <img
-          className="h-8 w-auto"
-          src="https://tailwindui.com/plus/img/logos/mark.svg?color=indigo&shade=500"
-          alt="Your Company"
-        /> */}
         <h1 className="text-4xl font-extrabold italic">XAM</h1>
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto">

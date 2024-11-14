@@ -15,6 +15,7 @@ export default function Table({
   onDelete,
   idAccessor,
   detailPage,
+  showActions = true, // New prop with default value
 }) {
   return (
     <div className="mt-8 flex flex-col">
@@ -40,12 +41,14 @@ export default function Table({
                       {column.Header}
                     </th>
                   ))}
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
-                  >
-                    Action
-                  </th>
+                  {showActions && (
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
+                    >
+                      Action
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
@@ -65,36 +68,38 @@ export default function Table({
                         {row[column.accessor]}
                       </td>
                     ))}
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-center text-sm font-medium">
-                      <Link href={`/${detailPage}/${row[idAccessor]}`}>
+                    {showActions && (
+                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-center text-sm font-medium">
+                        <Link href={`/${detailPage}/${row[idAccessor]}`}>
+                          <button
+                            type="button"
+                            className="inline-flex items-center rounded-full border border-transparent bg-blue-600 p-1 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                          >
+                            <InformationCircleIcon
+                              className="h-5 w-5"
+                              aria-hidden="true"
+                            />
+                          </button>
+                        </Link>
                         <button
                           type="button"
-                          className="inline-flex items-center rounded-full border border-transparent bg-blue-600 p-1 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                          className="inline-flex items-center rounded-full border border-transparent bg-yellow-500 p-1 text-white shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 mx-1"
+                          onClick={() => onEdit(row)}
                         >
-                          <InformationCircleIcon
+                          <PencilSquareIcon
                             className="h-5 w-5"
                             aria-hidden="true"
                           />
                         </button>
-                      </Link>
-                      <button
-                        type="button"
-                        className="inline-flex items-center rounded-full border border-transparent bg-yellow-500 p-1 text-white shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 mx-1"
-                        onClick={() => onEdit(row)}
-                      >
-                        <PencilSquareIcon
-                          className="h-5 w-5"
-                          aria-hidden="true"
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center rounded-full border border-transparent bg-red-600 p-1 text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                        onClick={() => onDelete(row)}
-                      >
-                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
-                      </button>
-                    </td>
+                        <button
+                          type="button"
+                          className="inline-flex items-center rounded-full border border-transparent bg-red-600 p-1 text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                          onClick={() => onDelete(row)}
+                        >
+                          <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

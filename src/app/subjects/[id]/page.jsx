@@ -23,7 +23,7 @@ export default function SubjectDetails({ params }) {
     };
 
     const fetchExams = async () => {
-      const response = await fetch(`/api/exams`);
+      const response = await fetch(`/api/exam`);
       const data = await response.json();
       setExams(data.exams || []);
     };

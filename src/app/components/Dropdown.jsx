@@ -10,7 +10,7 @@ export default function Dropdown({
   onChange,
 }) {
   return (
-    <div className="w-52 mr-5">
+    <div className="mr-5">
       <label htmlFor={id} className="block font-medium text-gray-900">
         {label}
       </label>

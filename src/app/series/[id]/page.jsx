@@ -30,7 +30,7 @@ export default function SeriesDetails({ params }) {
     };
 
     const fetchExamFinalGrades = async () => {
-      const response = await fetch(`/api/examfinalgrade?studentId=${id}`);
+      const response = await fetch(`/api/examfinalgrade?studentid=${id}`);
       const data = await response.json();
       setExamFinalGrades(data.examFinalGrades || []);
     };

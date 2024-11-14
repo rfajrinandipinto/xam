@@ -6,6 +6,7 @@ import Sidebar from "./components/sidebar";
 import Navbar from "./components/navbar";
 import { AlertProvider, useAlert } from "./context/AlertContext";
 import Alert from "./components/alert";
+import { usePathname } from "next/navigation";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -34,9 +35,11 @@ export default function RootLayout({ children }) {
 
 function AppContent({ children }) {
   const { alert, dismissAlert } = useAlert();
+  const pathname = usePathname().split("/")[1];
+  const isLoginPage = pathname === "login";
 
   return (
-    <div className="relative">
+    <div className={`relative ${isLoginPage ? "bg-gray-900 h-screen" : ""} `}>
       {alert && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
           <Alert
@@ -47,11 +50,13 @@ function AppContent({ children }) {
         </div>
       )}
       <div className="">
-        <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
-          <Sidebar />
-        </div>
-        <div className="flex flex-col md:pl-64">
-          <Navbar />
+        {!isLoginPage && (
+          <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
+            <Sidebar />
+          </div>
+        )}
+        <div className={`flex flex-col ${!isLoginPage ? "md:pl-64" : ""}`}>
+          {!isLoginPage && <Navbar />}
           <main className="flex-1">
             <div className="py-6">{children}</div>
           </main>

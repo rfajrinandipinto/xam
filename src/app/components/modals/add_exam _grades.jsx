@@ -5,39 +5,83 @@ import {
   XMarkIcon,
   UserPlusIcon,
 } from "@heroicons/react/24/outline";
+import Dropdown from "@/app/components/Dropdown";
+import { useAlert } from "@/app/context/AlertContext";
 
-export default function Add_exams_grades({
-  open,
-  setOpen,
-  studentId,
-  subjects,
-}) {
+export default function Add_exams_grades({ open, setOpen, subjects }) {
+  const [examSeries, setExamSeries] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState("");
+  const [selectedSeries, setSelectedSeries] = useState("");
+  const [filteredSubjects, setFilteredSubjects] = useState(subjects);
   const [subjectID, setSubjectID] = useState(subjects[0]?.examsubjid || "");
+  const [examResults, setExamResults] = useState([]);
   const [grades, setGrades] = useState([]);
   const [mark, setMark] = useState(0);
   const [selectedGrade, setSelectedGrade] = useState({});
+  const { showAlert } = useAlert();
 
   useEffect(() => {
-    const fetchGrades = async () => {
-      const response = await fetch(
-        `/api/examfinalgrade?subjectID=${subjectID}`
-      );
+    const fetchExamSeries = async () => {
+      const response = await fetch(`/api/examseries`);
       const data = await response.json();
+      setExamSeries(data.examSeries || []);
+      if (data.examSeries.length > 0) {
+        setSelectedSeries(data.examSeries[0].examseriesid);
+      }
+    };
 
-      setGrades(data.examFinalGrades || []);
+    const fetchStudents = async () => {
+      const response = await fetch(`/api/student`);
+      const data = await response.json();
+      setStudents(data.students || []);
+      if (data.students.length > 0) {
+        setSelectedStudent(data.students[0].studentid);
+      }
+    };
+
+    fetchExamSeries();
+    fetchStudents();
+  }, []);
+
+  useEffect(() => {
+    const fetchExamResults = async () => {
+      const response = await fetch(`/api/examresults?subjectID=${subjectID}`);
+      const data = await response.json();
+      setExamResults(data.examResults || []);
+    };
+
+    const fetchGrades = async () => {
+      const response = await fetch(`/api/subjgrade?subjectID=${subjectID}`);
+      const data = await response.json();
+      setGrades(data.subjGrades || []);
     };
 
     if (subjectID) {
+      fetchExamResults();
       fetchGrades();
     }
   }, [subjectID]);
 
-  const findGrade = (mark) => {
-    const sortedGrades = [...grades].sort(
-      (a, b) => b.finalpercent - a.finalpercent
-    );
+  useEffect(() => {
+    if (selectedSeries) {
+      const filtered = subjects.filter(
+        (sub) => sub.examseriesid === parseInt(selectedSeries)
+      );
+      setFilteredSubjects(filtered);
+      setSubjectID(filtered[0]?.examsubjid || "");
+    } else {
+      setFilteredSubjects(subjects);
+      setSubjectID(subjects[0]?.examsubjid || "");
+    }
+  }, [selectedSeries, subjects]);
 
-    const foundGrade = sortedGrades.find((grade) => mark >= grade.finalpercent);
+  useEffect(() => {}, [selectedSeries, selectedStudent]);
+
+  const findGrade = (mark) => {
+    const sortedGrades = [...grades].sort((a, b) => b.subjmin - a.subjmin);
+
+    const foundGrade = sortedGrades.find((grade) => mark >= grade.subjmin);
 
     setSelectedGrade(foundGrade || {});
   };
@@ -57,17 +101,27 @@ export default function Add_exams_grades({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const examResultData = {
-      examseriesid: selectedGrade.examseriesid,
-      examsubjid: subjectID,
-      studentid: studentId,
-      marks: mark,
-      subjgpa: selectedGrade.overallgradepoint,
-      subjgrade: selectedGrade.overallgrade,
-      subjresults: selectedGrade.overallrank,
-    };
+    // Check if the student already has grades for the selected subject
+    const response = await fetch(
+      `/api/examresults?studentid=${selectedStudent}&subjectid=${subjectID}`
+    );
+    const data = await response.json();
+    const existingGrade = data.examResults;
 
-    console.log(examResultData);
+    if (existingGrade.length > 0) {
+      showAlert("error", "Grade already exists for the selected subject.");
+      return;
+    }
+
+    const examResultData = {
+      examseriesid: selectedSeries,
+      examsubjid: subjectID,
+      studentid: selectedStudent,
+      marks: mark,
+      subjgpa: selectedGrade.subjgpa,
+      subjgrade: selectedGrade.subjgrade,
+      subjresults: selectedGrade.subjresult,
+    };
 
     try {
       const res = await fetch("/api/examresults", {
@@ -80,7 +134,7 @@ export default function Add_exams_grades({
 
       if (res.ok) {
         console.log("Exam result created successfully");
-        window.location.reload();
+        // window.location.reload();
         setOpen(false);
       } else {
         const errorData = await res.json();
@@ -90,6 +144,16 @@ export default function Add_exams_grades({
       console.error("Request failed:", error);
     }
   };
+
+  const examSeriesOptions = examSeries.map((series) => ({
+    value: series.examseriesid,
+    label: series.examseriesdescription,
+  }));
+
+  const studentOptions = students.map((student) => ({
+    value: student.studentid,
+    label: student.studentname,
+  }));
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -144,7 +208,39 @@ export default function Add_exams_grades({
                         Add Exam Grades
                       </Dialog.Title>
                       <div className="mt-2 w-full flex">
-                        <div className="mr-5">
+                        <div className="mr-5 w-1/2">
+                          <label
+                            htmlFor="student"
+                            className="block text-sm font-medium text-gray-700"
+                          >
+                            Student
+                          </label>
+                          <Dropdown
+                            id="student"
+                            name="student"
+                            options={studentOptions}
+                            defaultValue=""
+                            onChange={(e) => setSelectedStudent(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-2 w-full flex">
+                        <div className=" w-1/2">
+                          <label
+                            htmlFor="examSeries"
+                            className="block text-sm font-medium text-gray-700"
+                          >
+                            Exam Series
+                          </label>
+                          <Dropdown
+                            id="examSeries"
+                            name="examSeries"
+                            options={examSeriesOptions}
+                            defaultValue=""
+                            onChange={(e) => setSelectedSeries(e.target.value)}
+                          />
+                        </div>
+                        <div className=" w-1/2">
                           <label
                             htmlFor="subject"
                             className="block text-sm font-medium text-gray-700"
@@ -158,7 +254,7 @@ export default function Add_exams_grades({
                             onChange={(e) => setSubjectID(e.target.value)}
                             value={subjectID}
                           >
-                            {subjects.map((sub) => (
+                            {filteredSubjects.map((sub) => (
                               <option
                                 key={sub.examsubjid}
                                 value={sub.examsubjid}
@@ -168,7 +264,9 @@ export default function Add_exams_grades({
                             ))}
                           </select>
                         </div>
-                        <div className="">
+                      </div>
+                      <div className="mt-2 ">
+                        <div className="w-1/2 mr-5">
                           <label
                             htmlFor="mark"
                             className="block text-sm font-medium text-gray-700"
@@ -201,8 +299,8 @@ export default function Add_exams_grades({
                           >
                             Grade
                           </label>
-                          <div className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:w-auto sm:text-5xl font-bold mr-5">
-                            {selectedGrade.overallgrade || "N/A"}
+                          <div className="flex items-center w-20 h-20 justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2  sm:text-4xl font-bold mr-5">
+                            {selectedGrade.subjgrade || "N/A"}
                           </div>
                         </div>
                         <div className=" mr-3">
@@ -217,7 +315,7 @@ export default function Add_exams_grades({
                               type="text"
                               name="gpa"
                               id="gpa"
-                              value={selectedGrade.overallgradepoint || ""}
+                              value={selectedGrade.subjgpa || ""}
                               readOnly
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
                             />
@@ -235,7 +333,7 @@ export default function Add_exams_grades({
                               type="text"
                               name="rank"
                               id="rank"
-                              value={selectedGrade.overallrank || ""}
+                              value={selectedGrade.subjresult || ""}
                               readOnly
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm text-black"
                             />
@@ -248,7 +346,7 @@ export default function Add_exams_grades({
                   <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                     <button
                       type="submit"
-                      className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+                      className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
                     >
                       Submit
                     </button>

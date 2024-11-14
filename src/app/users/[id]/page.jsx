@@ -6,7 +6,6 @@ import Edit_modal from "@/app/components/modals/edit_modal";
 import Delete_modal from "@/app/components/modals/delete_modal";
 import Add_exams_grades from "@/app/components/modals/add_exam _grades";
 import Dropdown from "@/app/components/Dropdown";
-import Pagination from "@/app/components/Pagination";
 
 export default function StudentDetails({ params }) {
   const { id } = params;
@@ -22,19 +21,15 @@ export default function StudentDetails({ params }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchExamResults = async (examseriesid = null, page = 1) => {
-    let url = `/api/examresults?studentid=${id}&page=${page}`;
+  const fetchExamResults = async (examseriesid = null) => {
+    let url = `/api/examresults?studentid=${id}`;
     if (examseriesid && examseriesid !== "all") {
       url += `&examseriesid=${examseriesid}`;
     }
     const response = await fetch(url);
     const data = await response.json();
-    console.log(data);
     setExamResults(data.examResults || []);
-    setTotalPages(Math.ceil(data.total / 10));
   };
 
   useEffect(() => {
@@ -69,11 +64,11 @@ export default function StudentDetails({ params }) {
     };
 
     fetchStudent();
-    fetchExamResults(null, page);
+    fetchExamResults();
     fetchExams();
     fetchExamSeries();
     fetchExamSubjects();
-  }, [id, page]);
+  }, [id]);
 
   useEffect(() => {
     setFilteredResults(
@@ -86,12 +81,7 @@ export default function StudentDetails({ params }) {
   const handleSeriesChange = async (e) => {
     const selectedOption = e.target.value;
     setSelectedSeries(selectedOption);
-    await fetchExamResults(selectedOption, page);
-  };
-
-  const handlePageChange = (newPage) => {
-    setPage(newPage);
-    fetchExamResults(selectedSeries, newPage);
+    await fetchExamResults(selectedOption);
   };
 
   const columns = [
@@ -102,6 +92,29 @@ export default function StudentDetails({ params }) {
     { Header: "GPA", accessor: "subjgpa", className: "w-24 text-center" },
     { Header: "Grade", accessor: "subjgrade", className: "w-24 text-center" },
     { Header: "Rank", accessor: "subjresults", className: "w-24 text-center" },
+    {
+      Header: "Action",
+      accessor: "action",
+      className: "w-24 text-center",
+      Cell: ({ row }) => (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            className="inline-flex items-center rounded-full border border-transparent bg-yellow-500 p-1 text-white shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 mx-1"
+            onClick={() => openEditModal(row.original)}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-full border border-transparent bg-red-600 p-1 text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            onClick={() => openDeleteModal(row.original)}
+          >
+            Delete
+          </button>
+        </div>
+      ),
+    },
   ];
 
   const data = filteredResults.map((result) => {
@@ -262,30 +275,23 @@ export default function StudentDetails({ params }) {
                 Add Grades
               </button>
             </div>
-            <div className="w-64">
-              <Dropdown
-                id="examSeries"
-                name="examSeries"
-                label="Select Exam Series"
-                options={examSeries}
-                defaultValue="all"
-                onChange={handleSeriesChange}
-              />
-            </div>
+            <Dropdown
+              id="examSeries"
+              name="examSeries"
+              label="Select Exam Series"
+              options={examSeries}
+              defaultValue="all"
+              onChange={handleSeriesChange}
+            />
           </div>
         </div>
         <Table
           data={data}
           columns={columns}
-          page={page}
+          page={1}
           limit={10}
           onEdit={openEditModal}
           onDelete={openDeleteModal}
-        />
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
         />
       </div>
     </>

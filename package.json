@@ -11,6 +11,10 @@
   "dependencies": {
     "@headlessui/react": "^2.1.9",
     "@heroicons/react": "^2.1.5",
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "js-cookie": "^3.0.5",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.3",
     "next": "14.2.15",
     "react": "^18",

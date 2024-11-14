@@ -5,6 +5,7 @@ import Edit_modal from "../components/modals/edit_modal";
 import Delete_modal from "../components/modals/delete_modal";
 import Pagination from "../components/Pagination";
 import Table from "../components/Table";
+import Dropdown from "../components/Dropdown";
 
 import {
   PlusIcon as PlusIconOutline,
@@ -21,6 +22,9 @@ export default function Subjects() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [examSeriesOptions, setExamSeriesOptions] = useState([]);
+  const [exams, setExams] = useState([]);
+  const [selectedExam, setSelectedExam] = useState("all");
+  const [selectedSeries, setSelectedSeries] = useState("all");
   const limit = 10;
 
   const fields = [
@@ -53,8 +57,12 @@ export default function Subjects() {
 
   useEffect(() => {
     fetchSubjects();
+  }, [page, keyword, selectedSeries]);
+
+  useEffect(() => {
     fetchExamSeriesOptions();
-  }, [page, keyword]);
+    fetchExams();
+  }, []);
 
   const columns = [
     { Header: "ID", accessor: "examsubjid", className: "w-24 text-center" },
@@ -81,30 +89,39 @@ export default function Subjects() {
   ];
 
   const fetchExamSeriesOptions = async () => {
-    const response = await fetch("/api/examseries");
+    let url = "/api/examseries";
+    if (selectedExam !== "all") {
+      url += `?examid=${selectedExam}`;
+    }
+    const response = await fetch(url);
     const data = await response.json();
-    setExamSeriesOptions(
-      data.examSeries.map((series) => ({
+    setExamSeriesOptions([
+      { value: "all", label: "All" },
+      ...data.examSeries.map((series) => ({
         value: series.examseriesid,
         label: series.examseriesdescription,
-      }))
-    );
+      })),
+    ]);
   };
 
-  useEffect(() => {
-    const fetchSubjects = async () => {
-      const response = await fetch("/api/examsubj");
-      const data = await response.json();
-      setSubjects(data.examSubjs || []);
-    };
-
-    fetchSubjects();
-  }, [isModalOpen, isEditModalOpen]);
+  const fetchExams = async () => {
+    const response = await fetch("/api/exam");
+    const data = await response.json();
+    setExams([
+      { value: "all", label: "All" },
+      ...data.exams.map((exam) => ({
+        value: exam.examid,
+        label: exam.examname,
+      })),
+    ]);
+  };
 
   const fetchSubjects = async () => {
-    const response = await fetch(
-      `/api/examsubj?search=${keyword}&page=${page}&limit=${limit}`
-    );
+    let url = `/api/examsubj?search=${keyword}&page=${page}&limit=${limit}`;
+    if (selectedSeries !== "all") {
+      url += `&examseriesid=${selectedSeries}`;
+    }
+    const response = await fetch(url);
     const data = await response.json();
     setSubjects(data.examSubjs);
     setTotal(data.total);
@@ -112,6 +129,22 @@ export default function Subjects() {
 
   const handleSearch = () => {
     setPage(1);
+    fetchSubjects();
+  };
+
+  const handleExamChange = async (e) => {
+    const selectedOption = e.target.value;
+    setSelectedExam(selectedOption);
+    setSelectedSeries("all"); // Reset the selected series when exam changes
+    setPage(1); // Reset page to 1 when filters change
+    await fetchExamSeriesOptions();
+    fetchSubjects();
+  };
+
+  const handleSeriesChange = async (e) => {
+    const selectedOption = e.target.value;
+    setSelectedSeries(selectedOption);
+    setPage(1); // Reset page to 1 when filters change
     fetchSubjects();
   };
 
@@ -126,15 +159,6 @@ export default function Subjects() {
     setSelectedSubject(subject);
     setIsDeleteModalOpen(true);
   };
-
-  useEffect(() => {
-    const fetchSubjects = async () => {
-      const response = await fetch("/api/examsubj");
-      const data = await response.json();
-      setSubjects(data.examSubjs || []);
-    };
-    fetchSubjects();
-  }, [isEditModalOpen, isModalOpen, isDeleteModalOpen]);
 
   return (
     <>
@@ -193,6 +217,7 @@ export default function Subjects() {
                   </button>
                 </div>
               </div>
+
               <button
                 type="button"
                 className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-5 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -200,6 +225,24 @@ export default function Subjects() {
               >
                 Add Exam Subject
               </button>
+            </div>
+            <div className="flex mt-5">
+              <Dropdown
+                id="exam"
+                name="exam"
+                label="Select Exam"
+                options={exams}
+                defaultValue="all"
+                onChange={handleExamChange}
+              />
+              <Dropdown
+                id="examSeries"
+                name="examSeries"
+                label="Select Exam Series"
+                options={examSeriesOptions}
+                defaultValue="all"
+                onChange={handleSeriesChange}
+              />
             </div>
           </div>
         </div>

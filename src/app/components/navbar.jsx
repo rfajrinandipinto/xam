@@ -3,12 +3,41 @@
 import { Fragment } from "react";
 import { Disclosure, Menu, Transition } from "@headlessui/react";
 import { Bars3Icon, BellIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { useRouter } from "next/navigation";
+import { useAlert } from "../context/AlertContext"; // Adjust the path as necessary
+import Cookies from "js-cookie";
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
 export default function Navbar() {
+  const router = useRouter();
+  const { showAlert } = useAlert();
+
+  const handleLogout = async () => {
+    console.log("test");
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        showAlert("Logout successful!", "success");
+        Cookies.remove("token"); // Remove token from cookies
+        router.push("/login"); // Redirect to login page
+      } else {
+        const errorData = await response.json();
+        showAlert(errorData.message, "error");
+      }
+    } catch (error) {
+      showAlert("An error occurred. Please try again.", "error");
+    }
+  };
+
   return (
     <Disclosure as="nav" className="bg-white shadow">
       {({ open }) => (
@@ -74,15 +103,15 @@ export default function Navbar() {
                       </Menu.Item>
                       <Menu.Item>
                         {({ active }) => (
-                          <a
-                            href="#"
+                          <button
+                            onClick={handleLogout}
                             className={classNames(
                               active ? "bg-gray-100" : "",
-                              "block px-4 py-2 text-sm text-gray-700"
+                              "block px-4 py-2 text-sm text-gray-700 w-full text-left"
                             )}
                           >
-                            Sign out
-                          </a>
+                            Log out
+                          </button>
                         )}
                       </Menu.Item>
                     </Menu.Items>
@@ -176,8 +205,8 @@ export default function Navbar() {
                   Settings
                 </Disclosure.Button>
                 <Disclosure.Button
-                  as="a"
-                  href="#"
+                  as="button"
+                  onClick={handleLogout}
                   className="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
                 >
                   Sign out

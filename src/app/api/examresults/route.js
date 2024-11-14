@@ -6,6 +6,8 @@ export async function GET(request) {
     try {
         const search = request.nextUrl.searchParams.get('search') || '';
         const studentid = request.nextUrl.searchParams.get('studentid') || '';
+        const examseriesid = request.nextUrl.searchParams.get('examseriesid') || '';
+        const subjectid = request.nextUrl.searchParams.get('subjectid') || '';
         const page = parseInt(request.nextUrl.searchParams.get('page')) || 1;
         const limit = parseInt(request.nextUrl.searchParams.get('limit')) || 10;
         const offset = (page - 1) * limit;
@@ -16,24 +18,54 @@ export async function GET(request) {
             INNER JOIN examseries ON examresults.examseriesid = examseries.examseriesid
             INNER JOIN examsubj ON examresults.examsubjid = examsubj.examsubjid
         `;
+        let countQuery = `
+            SELECT COUNT(*) as count 
+            FROM examresults 
+            INNER JOIN examseries ON examresults.examseriesid = examseries.examseriesid
+            INNER JOIN examsubj ON examresults.examsubjid = examsubj.examsubjid
+        `;
         let queryParams = [];
+        let countQueryParams = [];
 
         if (search) {
-            query += ' WHERE subjdesc LIKE ?';
+            query += ' WHERE examsubj.subjdesc LIKE ?';
+            countQuery += ' WHERE examsubj.subjdesc LIKE ?';
             queryParams.push(`%${search}%`);
+            countQueryParams.push(`%${search}%`);
         }
 
         if (studentid) {
             query += search ? ' AND' : ' WHERE';
+            countQuery += search ? ' AND' : ' WHERE';
             query += ' examresults.studentid = ?';
+            countQuery += ' examresults.studentid = ?';
             queryParams.push(studentid);
+            countQueryParams.push(studentid);
+        }
+
+        if (examseriesid) {
+            query += (search || studentid) ? ' AND' : ' WHERE';
+            countQuery += (search || studentid) ? ' AND' : ' WHERE';
+            query += ' examresults.examseriesid = ?';
+            countQuery += ' examresults.examseriesid = ?';
+            queryParams.push(examseriesid);
+            countQueryParams.push(examseriesid);
+        }
+
+        if (subjectid) {
+            query += (search || studentid || examseriesid) ? ' AND' : ' WHERE';
+            countQuery += (search || studentid || examseriesid) ? ' AND' : ' WHERE';
+            query += ' examresults.examsubjid = ?';
+            countQuery += ' examresults.examsubjid = ?';
+            queryParams.push(subjectid);
+            countQueryParams.push(subjectid);
         }
 
         query += ' LIMIT ? OFFSET ?';
         queryParams.push(limit, offset);
 
         const [rows] = await pool.query(query, queryParams);
-        const [totalRows] = await pool.query('SELECT COUNT(*) as count FROM examresults');
+        const [totalRows] = await pool.query(countQuery, countQueryParams);
         const total = totalRows[0].count;
 
         return NextResponse.json({ examResults: rows, total, page, limit });
