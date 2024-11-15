@@ -36,7 +36,9 @@ export default function Table({
                     <th
                       key={column.accessor}
                       scope="col"
-                      className={`px-3 py-3.5 text-sm font-semibold text-gray-900 ${column.className}`}
+                      className={`px-3 py-3.5 text-sm font-semibold text-gray-900 ${column.className} ${
+                        column.accessor === "studentname" ? "sticky left-0 bg-gray-50 z-10" : ""
+                      }`}
                     >
                       {column.Header}
                     </th>
@@ -63,7 +65,9 @@ export default function Table({
                     {columns.map((column) => (
                       <td
                         key={column.accessor}
-                        className={`whitespace-nowrap px-3 py-4 text-sm text-gray-900 ${column.className}`}
+                        className={`whitespace-nowrap px-3 py-4 text-sm text-gray-900 ${column.className} ${
+                          column.accessor === "studentname" ? "sticky left-0 bg-white z-10" : ""
+                        }`}
                       >
                         {row[column.accessor]}
                       </td>

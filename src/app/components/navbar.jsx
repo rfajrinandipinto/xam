@@ -26,7 +26,7 @@ export default function Navbar() {
       });
 
       if (response.ok) {
-        showAlert("Logout successful!", "success");
+        showAlert( "success", "Logout successful!",);
         Cookies.remove("token"); // Remove token from cookies
         router.push("/login"); // Redirect to login page
       } else {
@@ -45,13 +45,7 @@ export default function Navbar() {
           <div className="mx-auto max-w-7xl px-8">
             <div className="flex h-16 justify-end">
               <div className="hidden sm:ml-6 sm:flex sm:items-center">
-                <button
-                  type="button"
-                  className="rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                  <span className="sr-only">View notifications</span>
-                  <BellIcon className="h-6 w-6" aria-hidden="true" />
-                </button>
+               
 
                 {/* Profile dropdown */}
                 <Menu as="div" className="relative ml-3">
@@ -88,19 +82,7 @@ export default function Navbar() {
                           </a>
                         )}
                       </Menu.Item>
-                      <Menu.Item>
-                        {({ active }) => (
-                          <a
-                            href="#"
-                            className={classNames(
-                              active ? "bg-gray-100" : "",
-                              "block px-4 py-2 text-sm text-gray-700"
-                            )}
-                          >
-                            Settings
-                          </a>
-                        )}
-                      </Menu.Item>
+                    
                       <Menu.Item>
                         {({ active }) => (
                           <button
@@ -181,13 +163,7 @@ export default function Navbar() {
                     tom@example.com
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="ml-auto flex-shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                  <span className="sr-only">View notifications</span>
-                  <BellIcon className="h-6 w-6" aria-hidden="true" />
-                </button>
+               
               </div>
               <div className="mt-3 space-y-1">
                 <Disclosure.Button

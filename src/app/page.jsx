@@ -5,6 +5,7 @@ import Table from "@/app/components/Table";
 import Dropdown from "@/app/components/Dropdown";
 import Loading from "./components/loading";
 import Add_exams_grades from "@/app/components/modals/add_exam _grades";
+import Edit_exam_grades from "@/app/components/modals/edit_exam_grades";
 
 export default function Home() {
   const [students, setStudents] = useState([]);
@@ -14,82 +15,103 @@ export default function Home() {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedExam, setSelectedExam] = useState("all");
+  const [selectedSeries, setSelectedSeries] = useState("all");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [selectedExamResultId, setSelectedExamResultId] = useState(null);
 
-  const fetchExamResults = async (examseriesid = null) => {
-    let url = `/api/examresults?limit=100`;
-    if (examseriesid) {
+  const fetchData = async (
+    examseriesid = null,
+    examid = null,
+    keyword = ""
+  ) => {
+    let url = `/api/dashboard?`;
+    if (examseriesid && examseriesid !== "all") {
       url += `&examseriesid=${examseriesid}`;
     }
-    const response = await fetch(url);
-    const data = await response.json();
-    console.log(data);
-    setExamResults(data.examResults || []);
-  };
-
-  const fetchExamSubjects = async (examseriesid = null) => {
-    let url = `/api/examsubj?limit=100`;
-    if (examseriesid) {
-      url += `&examseriesid=${examseriesid}`;
+    if (examid && examid !== "all") {
+      url += `&examid=${examid}`;
+    }
+    if (keyword) {
+      url += `&search=${keyword}`;
     }
     const response = await fetch(url);
-    const data = await response.json();
-    setExamSubjects(data.examSubjs || []);
-  };
-
-  const fetchExamSeries = async () => {
-    const response = await fetch(`/api/examseries`);
-    const data = await response.json();
-    setExamSeries(data.examSeries || []);
-  };
-
-  const fetchStudents = async () => {
-    const response = await fetch("/api/student");
     const data = await response.json();
     setStudents(data.students || []);
-  };
-
-  const fetchExams = async () => {
-    const response = await fetch(`/api/exam`);
-    const data = await response.json();
+    setExamSubjects(data.examSubjects || []);
+    setExamResults(data.examResults || []);
+    setExamSeries(data.examSeries || []);
     setExams(data.exams || []);
   };
 
   useEffect(() => {
-    setLoading(true);
+    const loadData = async () => {
+      setLoading(true);
+      await fetchData();
+      setTimeout(() => {
+        setLoading(false);
+      }, 500); // Extend the loading duration by 500ms
+    };
 
-    fetchStudents();
-    fetchExamSeries();
-    fetchExamResults();
-    fetchExamSubjects();
-    fetchExams();
-
-    setLoading(false);
+    loadData();
   }, []);
 
   const handleExamChange = async (e) => {
     const selectedOption = e.target.value;
     setSelectedExam(selectedOption);
-    setSelectedSeries(null);
-    if (selectedOption === "all") {
-      await fetchExamSeries();
-    } else {
-      const response = await fetch(`/api/examseries?examid=${selectedOption}`);
-      const data = await response.json();
-      setExamSeries(data.examSeries || []);
-    }
+    setSelectedSeries("all");
+    setLoading(true);
+    await fetchData(null, selectedOption, searchKeyword);
+    setTimeout(() => {
+      setLoading(false);
+    }, 500); // Extend the loading duration by 500ms
   };
 
   const handleSeriesChange = async (e) => {
     const selectedOption = e.target.value;
     setSelectedSeries(selectedOption);
-    if (selectedOption === "all") {
-      await fetchExamResults();
-      await fetchExamSubjects();
-    } else {
-      await fetchExamResults(selectedOption);
-      await fetchExamSubjects(selectedOption);
-    }
+    setLoading(true);
+    await fetchData(selectedOption, selectedExam, searchKeyword);
+    setTimeout(() => {
+      setLoading(false);
+    }, 500); // Extend the loading duration by 500ms
   };
+
+  const handleSearchChange = (e) => {
+    setSearchKeyword(e.target.value);
+  };
+
+  const handleSearchClick = async () => {
+    setLoading(true);
+    await fetchData(selectedSeries, selectedExam, searchKeyword);
+    setTimeout(() => {
+      setLoading(false);
+    }, 500); // Extend the loading duration by 500ms
+  };
+
+  const handleGradeAdded = async () => {
+    setLoading(true);
+    await fetchData(selectedSeries, selectedExam, searchKeyword);
+    setTimeout(() => {
+      setLoading(false);
+    }, 500); // Extend the loading duration by 500ms
+  };
+
+  const handleGradeClick = (examresultsid) => {
+    setSelectedExamResultId(examresultsid);
+    setIsEditModalOpen(true);
+  };
+
+  const filteredExamSubjects = examSubjects.filter((subject) => {
+    if (selectedExam !== "all" && subject.examid != selectedExam) {
+      return false;
+    }
+    if (selectedSeries !== "all" && subject.examseriesid != selectedSeries) {
+      return false;
+    }
+    return true;
+  });
 
   const columns = [
     {
@@ -97,11 +119,19 @@ export default function Home() {
       accessor: "studentname",
       className: "w-48 text-left sticky left-0",
     },
-    ...examSubjects.map((subject, index) => ({
-      Header: `${subject.subjcode}`,
-      accessor: `subject${index + 1}`,
-      className: "text-center",
-    })),
+    ...(filteredExamSubjects.length > 0
+      ? filteredExamSubjects.map((subject, index) => ({
+          Header: `${subject.subjcode}`,
+          accessor: `subject${index + 1}`,
+          className: "text-center",
+        }))
+      : [
+          {
+            Header: "No subjects available",
+            accessor: "noSubjects",
+            className: "text-center",
+          },
+        ]),
   ];
 
   function getGradeClass(grade) {
@@ -143,37 +173,40 @@ export default function Home() {
         (result) => result.studentid === student.studentid
       );
 
-      const subjectsData = examSubjects.reduce((acc, subject, index) => {
-        const result = studentResults.find(
-          (res) => res.examsubjid === subject.examsubjid
-        );
-        acc[`subject${index + 1}`] = result ? (
-          <div>
-            <div
-              className={`inline-flex justify-center rounded-md border border-transparent ${getGradeClass(
-                result.subjgrade
-              )} w-14 h-14 items-center text-white shadow-sm  sm:text-xl font-bold`}
-            >
-              {result.subjgrade}
-            </div>
+      const subjectsData = filteredExamSubjects.reduce(
+        (acc, subject, index) => {
+          const result = studentResults.find(
+            (res) => res.examsubjid === subject.examsubjid
+          );
+          acc[`subject${index + 1}`] = result ? (
+            <div onClick={() => handleGradeClick(result.examresultsid)}>
+              <div
+                className={`inline-flex justify-center rounded-md border border-transparent ${getGradeClass(
+                  result.subjgrade
+                )} w-14 h-14 items-center text-white shadow-sm  sm:text-xl font-bold cursor-pointer`}
+              >
+                {result.subjgrade}
+              </div>
 
-            <div className="flex justify-center items-center mt-1">
-              <div className="inline-flex justify-center w-7 h-7 rounded-md border border-transparent bg-black items-center text-white shadowmd  sm:text-md font-bold mx-1">
-                {" "}
-                {result.marks}
-              </div>
-              |
-              <div className="inline-flex justify-center w-10 h-7 rounded-md border border-transparent bg-green-600 items-center text-white shadow-sm  sm:text-md font-bold mx-1">
-                {" "}
-                {result.subjgpa}
+              <div className="flex justify-center items-center mt-1">
+                <div className="inline-flex justify-center w-7 h-7 rounded-md border border-transparent bg-black items-center text-white shadowmd  sm:text-md font-bold mx-1">
+                  {" "}
+                  {result.marks}
+                </div>
+                |
+                <div className="inline-flex justify-center w-10 h-7 rounded-md border border-transparent bg-green-600 items-center text-white shadow-sm  sm:text-md font-bold mx-1">
+                  {" "}
+                  {result.subjgpa}
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          ""
-        );
-        return acc;
-      }, {});
+          ) : (
+            ""
+          );
+          return acc;
+        },
+        {}
+      );
 
       return {
         studentname: student.studentname,
@@ -208,22 +241,26 @@ export default function Home() {
           <div className="sm:flex-auto">
             <div className="flex justify-between">
               <div className="flex">
-                <Dropdown
-                  id="exam"
-                  name="exam"
-                  label="Select Exam"
-                  options={examOptions}
-                  defaultValue="all"
-                  onChange={handleExamChange}
-                />
-                <Dropdown
-                  id="examSeries"
-                  name="examSeries"
-                  label="Select Exam Series"
-                  options={examSeriesOptions}
-                  defaultValue="all"
-                  onChange={handleSeriesChange}
-                />
+                <div className="w-52">
+                  <Dropdown
+                    id="exam"
+                    name="exam"
+                    label="Select Exam"
+                    options={examOptions}
+                    defaultValue="all"
+                    onChange={handleExamChange}
+                  />
+                </div>
+                <div className="w-52">
+                  <Dropdown
+                    id="examSeries"
+                    name="examSeries"
+                    label="Select Exam Series"
+                    options={examSeriesOptions}
+                    defaultValue="all"
+                    onChange={handleSeriesChange}
+                  />
+                </div>
               </div>
 
               <button
@@ -233,6 +270,31 @@ export default function Home() {
               >
                 Add Exam Grades
               </button>
+            </div>
+            <div className="flex mt-4">
+              <div className="w-72">
+                <div className="mr-5">
+                  <label for="exam" class="block font-medium text-gray-900">
+                    Search Student
+                  </label>
+                  <div className="flex">
+                    <input
+                      type="text"
+                      placeholder="Search Students"
+                      value={searchKeyword}
+                      onChange={handleSearchChange}
+                      className="w-full mt-1 block  rounded-md border-gray-300 py-2 pl-3  text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
+                    />
+                    <button
+                      type="button"
+                      className="ml-2 inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                      onClick={handleSearchClick}
+                    >
+                      Search
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -254,6 +316,16 @@ export default function Home() {
           open={isAddModalOpen}
           setOpen={setIsAddModalOpen}
           subjects={examSubjects}
+          onGradeAdded={handleGradeAdded} // Pass the callback function
+        />
+      )}
+
+      {isEditModalOpen && (
+        <Edit_exam_grades
+          open={isEditModalOpen}
+          setOpen={setIsEditModalOpen}
+          examresultsid={selectedExamResultId}
+          onGradeUpdated={handleGradeAdded} // Pass the callback function
         />
       )}
     </>

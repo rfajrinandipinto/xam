@@ -15,13 +15,10 @@ export async function middleware(req) {
 
   try {
     const decoded = jwt.decode(token.value);
-    console.log('Decoded token:', decoded); // Log the decoded token
 
-    // jwt.verify(token, '1731068634');
-    console.log('Token verified, proceeding');
     return NextResponse.next();
   } catch (error) {
-    console.log('Invalid token, redirecting to login');
+
     return NextResponse.redirect(new URL('/login', req.url));
   }
 }

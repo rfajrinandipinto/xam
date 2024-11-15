@@ -23,13 +23,13 @@ export default function Example() {
       });
 
       if (response.ok) {
-        showAlert("Login successful!", "success");
+        showAlert( "success", "Login successful!");
         const data = await response.json();
         Cookies.set("token", data.token, { expires: 1 }); // Store token in cookies for 1 day
         router.push("/");
       } else {
         const errorData = await response.json();
-        showAlert(errorData.message, "error");
+        showAlert( "error", errorData.error);
       }
     } catch (error) {
       showAlert("An error occurred. Please try again.", "error");

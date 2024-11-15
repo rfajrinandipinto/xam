@@ -1,82 +1,48 @@
 import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import {
-  ExclamationTriangleIcon,
-  XMarkIcon,
-  UserPlusIcon,
-} from "@heroicons/react/24/outline";
-import Dropdown from "@/app/components/Dropdown";
+import { XMarkIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import { useAlert } from "@/app/context/AlertContext";
 
-export default function Add_exams_grades({ open, setOpen, subjects, onGradeAdded }) {
-  const [examSeries, setExamSeries] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [selectedStudent, setSelectedStudent] = useState("");
-  const [selectedSeries, setSelectedSeries] = useState("");
-  const [filteredSubjects, setFilteredSubjects] = useState(subjects);
-  const [subjectID, setSubjectID] = useState(subjects[0]?.examsubjid || "");
-  const [grades, setGrades] = useState([]);
+export default function Edit_exam_grades({
+  open,
+  setOpen,
+  examresultsid,
+  onGradeUpdated,
+}) {
+  const [examResult, setExamResult] = useState(null);
   const [mark, setMark] = useState(0);
   const [selectedGrade, setSelectedGrade] = useState({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [isUpdateEnabled, setIsUpdateEnabled] = useState(false);
+  const [grades, setGrades] = useState([]);
   const { showAlert } = useAlert();
 
   useEffect(() => {
-    const fetchExamSeries = async () => {
-      const response = await fetch(`/api/examseries`);
+    const fetchExamResult = async () => {
+      const response = await fetch(`/api/examresults/${examresultsid}`);
       const data = await response.json();
-      setExamSeries(data.examSeries || []);
-      if (data.examSeries.length > 0) {
-        setSelectedSeries(data.examSeries[0].examseriesid);
-      }
-    };
+      const result = data.examResult;
+      setExamResult(result);
+      setMark(result.marks);
+      setSelectedGrade({
+        subjgrade: result.subjgrade,
+        subjgpa: result.subjgpa,
+        subjresult: result.subjresults,
+      });
 
-    const fetchStudents = async () => {
-      const response = await fetch(`/api/student`);
-      const data = await response.json();
-      setStudents(data.students || []);
-      if (data.students.length > 0) {
-        setSelectedStudent(data.students[0].studentid);
-      }
-    };
+      const fetchGrades = async () => {
+        const response = await fetch(
+          `/api/subjgrade?subjectID=${result.examsubjid}`
+        );
+        const data = await response.json();
+        setGrades(data.subjGrades || []);
+      };
 
-    fetchExamSeries();
-    fetchStudents();
-  }, []);
-
-  useEffect(() => {
-    const fetchGrades = async () => {
-      const response = await fetch(`/api/subjgrade?subjectID=${subjectID}`);
-      const data = await response.json();
-      setGrades(data.subjGrades || []);
-    };
-
-    if (subjectID) {
       fetchGrades();
-    }
-  }, [subjectID]);
+    };
 
-  useEffect(() => {
-    if (selectedSeries) {
-      const filtered = subjects.filter(
-        (sub) => sub.examseriesid === parseInt(selectedSeries)
-      );
-      setFilteredSubjects(filtered);
-      setSubjectID(filtered[0]?.examsubjid || "");
-    } else {
-      setFilteredSubjects(subjects);
-      setSubjectID(subjects[0]?.examsubjid || "");
-    }
-  }, [selectedSeries, subjects]);
-
-  useEffect(() => {}, [selectedSeries, selectedStudent]);
-
-  const findGrade = (mark) => {
-    const sortedGrades = [...grades].sort((a, b) => b.subjmin - a.subjmin);
-
-    const foundGrade = sortedGrades.find((grade) => mark >= grade.subjmin);
-
-    setSelectedGrade(foundGrade || {});
-  };
+    fetchExamResult();
+  }, [examresultsid]);
 
   const handleInputChange = (e) => {
     let mark = parseFloat(e.target.value);
@@ -91,27 +57,21 @@ export default function Add_exams_grades({ open, setOpen, subjects, onGradeAdded
       setMark(0);
       setSelectedGrade({}); // Reset if input is not a valid number
     }
+
+    // Enable the update button only if the mark is changed
+    setIsUpdateEnabled(mark !== examResult.marks);
+  };
+
+  const findGrade = (mark) => {
+    const sortedGrades = [...grades].sort((a, b) => b.subjmin - a.subjmin);
+    const foundGrade = sortedGrades.find((grade) => mark >= grade.subjmin);
+    setSelectedGrade(foundGrade || {});
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Check if the student already has grades for the selected subject
-    const response = await fetch(
-      `/api/examresults?studentid=${selectedStudent}&subjectid=${subjectID}`
-    );
-    const data = await response.json();
-    const existingGrade = data.examResults;
-
-    if (existingGrade.length > 0) {
-      showAlert("error", "Grade already exists for the selected subject.");
-      return;
-    }
-
     const examResultData = {
-      examseriesid: selectedSeries,
-      examsubjid: subjectID,
-      studentid: selectedStudent,
       marks: mark,
       subjgpa: selectedGrade.subjgpa,
       subjgrade: selectedGrade.subjgrade,
@@ -119,8 +79,8 @@ export default function Add_exams_grades({ open, setOpen, subjects, onGradeAdded
     };
 
     try {
-      const res = await fetch("/api/examresults", {
-        method: "POST",
+      const res = await fetch(`/api/examresults/${examresultsid}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -128,27 +88,21 @@ export default function Add_exams_grades({ open, setOpen, subjects, onGradeAdded
       });
 
       if (res.ok) {
-        console.log("Exam result created successfully");
-        onGradeAdded(); // Call the callback function to refetch grades
+        console.log("Exam result updated successfully");
+        onGradeUpdated(); // Call the callback function to refetch grades
         setOpen(false);
       } else {
         const errorData = await res.json();
-        console.error("Error creating exam result:", errorData.error);
+        console.error("Error updating exam result:", errorData.error);
       }
     } catch (error) {
       console.error("Request failed:", error);
     }
   };
 
-  const examSeriesOptions = examSeries.map((series) => ({
-    value: series.examseriesid,
-    label: series.examseriesdescription,
-  }));
-
-  const studentOptions = students.map((student) => ({
-    value: student.studentid,
-    label: student.studentname,
-  }));
+  if (!examResult) {
+    return null; // or a loading indicator
+  }
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -200,68 +154,62 @@ export default function Add_exams_grades({ open, setOpen, subjects, onGradeAdded
                         as="h3"
                         className="text-lg font-medium leading-6 text-gray-900 mt-2 mb-3"
                       >
-                        Add Exam Grades
+                        Edit Exam Grades
                       </Dialog.Title>
                       <div className="mt-2 w-full flex">
-                        <div className="mr-5 w-1/2">
+                        <div className=" w-1/2 pr-5">
                           <label
                             htmlFor="student"
                             className="block text-sm font-medium text-gray-700"
                           >
                             Student
                           </label>
-                          <Dropdown
+                          <input
+                            type="text"
                             id="student"
                             name="student"
-                            options={studentOptions}
-                            defaultValue=""
-                            onChange={(e) => setSelectedStudent(e.target.value)}
+                            value={examResult.studentname}
+                            disabled
+                            className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
                           />
                         </div>
                       </div>
                       <div className="mt-2 w-full flex">
-                        <div className=" w-1/2">
+                        <div className=" w-1/2 pr-5">
                           <label
                             htmlFor="examSeries"
                             className="block text-sm font-medium text-gray-700"
                           >
                             Exam Series
                           </label>
-                          <Dropdown
+                          <input
+                            type="text"
                             id="examSeries"
                             name="examSeries"
-                            options={examSeriesOptions}
-                            defaultValue=""
-                            onChange={(e) => setSelectedSeries(e.target.value)}
+                            value={examResult.examseriesdescription}
+                            disabled
+                            className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
                           />
                         </div>
-                        <div className=" w-1/2">
+                        <div className=" w-1/2 pr-5">
                           <label
                             htmlFor="subject"
                             className="block text-sm font-medium text-gray-700"
                           >
                             Subject
                           </label>
-                          <select
+                          <input
+                            type="text"
                             id="subject"
                             name="subject"
+                            value={examResult.subjdesc}
+                            disabled
                             className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
-                            onChange={(e) => setSubjectID(e.target.value)}
-                            value={subjectID}
-                          >
-                            {filteredSubjects.map((sub) => (
-                              <option
-                                key={sub.examsubjid}
-                                value={sub.examsubjid}
-                              >
-                                ({sub.subjcode}) {sub.subjdesc}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </div>
                       </div>
                       <div className="mt-2 ">
-                        <div className="w-1/2 mr-5">
+                        <div className="w-1/2 pr-5 mr-5">
                           <label
                             htmlFor="mark"
                             className="block text-sm font-medium text-gray-700"
@@ -342,9 +290,12 @@ export default function Add_exams_grades({ open, setOpen, subjects, onGradeAdded
                   <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                     <button
                       type="submit"
-                      className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+                      className={`inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm ${
+                        !isUpdateEnabled ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                      disabled={!isUpdateEnabled}
                     >
-                      Submit
+                      Update
                     </button>
                     <button
                       type="button"

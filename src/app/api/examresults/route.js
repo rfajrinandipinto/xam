@@ -8,8 +8,9 @@ export async function GET(request) {
         const studentid = request.nextUrl.searchParams.get('studentid') || '';
         const examseriesid = request.nextUrl.searchParams.get('examseriesid') || '';
         const subjectid = request.nextUrl.searchParams.get('subjectid') || '';
+        const examid = request.nextUrl.searchParams.get('examid') || '';
         const page = parseInt(request.nextUrl.searchParams.get('page')) || 1;
-        const limit = parseInt(request.nextUrl.searchParams.get('limit')) || 10;
+        const limit = parseInt(request.nextUrl.searchParams.get('limit')) || 999;
         const offset = (page - 1) * limit;
 
         let query = `
@@ -61,6 +62,15 @@ export async function GET(request) {
             countQueryParams.push(subjectid);
         }
 
+        if (examid) {
+            query += (search || studentid || examseriesid || subjectid) ? ' AND' : ' WHERE';
+            countQuery += (search || studentid || examseriesid || subjectid) ? ' AND' : ' WHERE';
+            query += ' examseries.examid = ?';
+            countQuery += ' examseries.examid = ?';
+            queryParams.push(examid);
+            countQueryParams.push(examid);
+        }
+
         query += ' LIMIT ? OFFSET ?';
         queryParams.push(limit, offset);
 
@@ -77,8 +87,8 @@ export async function GET(request) {
 
 export async function POST(req) {
     try {
-        const body = await req.json(); 
-        const { examseriesid, examsubjid, studentid, marks, subjgpa, subjgrade, subjresults } = body; 
+        const body = await req.json();
+        const { examseriesid, examsubjid, studentid, marks, subjgpa, subjgrade, subjresults } = body;
 
         if (!examseriesid || !examsubjid || !studentid || !marks || !subjgpa || !subjgrade || !subjresults) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
