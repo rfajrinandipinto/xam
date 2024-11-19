@@ -1,337 +1,478 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from "react";
-import { PDFDownloadLink } from "@react-pdf/renderer";
+import { useState, useEffect } from "react";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import Table from "../components/Table";
-import TranscriptPDF from "../components/TranscriptPDF";
-import Loading from "../components/loading";
+import Table from "@/app/components/Table";
+import Dropdown from "@/app/components/Dropdown";
+import Loading from "@/app/components/loading";
+import {
+  getGradeAndGPA,
+  getOverallAchievement,
+  getGradeClass,
+} from "../utils/examResult";
+import MultiTranscriptDownload from "../components/MultiTranscriptDownload";
+import { formatDate } from "../utils/formatDate";
 
-export default function TranscriptPage() {
-  const [allStudents, setAllStudents] = useState([]);
-  const [displayLimit] = useState(10);
-  const [exams, setExams] = useState([]);
-  const [examSeries, setExamSeries] = useState([]);
-  const [selectedStudent, setSelectedStudent] = useState("");
-  const [selectedExam, setSelectedExam] = useState("");
-  const [selectedExamSeries, setSelectedExamSeries] = useState("");
+export default function Transcript() {
+  const [students, setStudents] = useState([]);
+  const [examSubjects, setExamSubjects] = useState([]);
   const [examResults, setExamResults] = useState([]);
+  const [examSeries, setExamSeries] = useState([]);
+  const [examGrades, setExamGrades] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedSeries, setSelectedSeries] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [selectedExamResultId, setSelectedExamResultId] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [pdfDataMap, setPdfDataMap] = useState(new Map());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageLimit] = useState(10);
 
-  // Search states
-  const [studentSearch, setStudentSearch] = useState("");
-  const [examSearch, setExamSearch] = useState("");
-  const [examSeriesSearch, setExamSeriesSearch] = useState("");
-  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
-  const [showExamDropdown, setShowExamDropdown] = useState(false);
-  const [showExamSeriesDropdown, setShowExamSeriesDropdown] = useState(false);
+  const fetchData = async (examseriesid = null, keyword = "") => {
+    let url = `/api/dashboard?`;
+    if (examseriesid && examseriesid !== "all") {
+      url += `&examseriesid=${examseriesid}`;
+    }
+    if (keyword) {
+      url += `&search=${keyword}`;
+    }
 
-  // Function to generate dynamic filename
-  const getTranscriptFilename = () => {
-    const today = new Date();
-    const dd = String(today.getDate()).padStart(2, '0');
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const yyyy = today.getFullYear();
-    
-    const studentIdNo = allStudents.find(
-      student => student.studentid === selectedStudent
-    )?.studentidno || 'unknown';
-    
-    const examSeriesDesc = examSeries.find(
-      series => series.examseriesid === selectedExamSeries
-    )?.examseriesdescription.replace(/\s+/g, '_') || 'unknown';
-    
-    return `${dd}${mm}${yyyy}_${studentIdNo}_${examSeriesDesc}_transcripts.pdf`;
+    console.log("Fetching data with URL:", url);
+    const response = await fetch(url);
+    const data = await response.json();
+    console.log("Fetched data:", data);
+
+    setStudents(data.students || []);
+    setExamSubjects(data.examSubjects || []);
+    setExamResults(data.examResults || []);
+    setExamSeries(data.examSeries || []);
   };
 
+  const fetchExamGrades = async (examseriesid = null) => {
+    try {
+      const url = examseriesid
+        ? `/api/examfinalgrade?examseriesid=${examseriesid}`
+        : '/api/examfinalgrade';
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log("Exam grades fetched:", data);
+      setExamGrades(data.examFinalGrades || []);
+    } catch (error) {
+      console.error("Failed to fetch exam grades:", error);
+    }
+  };  
+
   useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        const response = await fetch("/api/student?limit=100");
-        const data = await response.json();
-        setAllStudents(data.students);
-      } catch (err) {
-        console.error("Failed to fetch students:", err);
-      }
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchData(), fetchExamGrades()]);
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
     };
-    fetchStudents();
+
+    loadData();
   }, []);
 
-  useEffect(() => {
-    const fetchExams = async () => {
-      try {
-        const response = await fetch("/api/exam");
-        const data = await response.json();
-        setExams(data.exams);
-      } catch (err) {
-        console.error("Failed to fetch exams:", err);
+  const calculateOverallStats = (studentid, examseriesid) => {
+    if (examGrades.length === 0) {
+      return { overallGPA: 0, achievement: "N/A" };
+    }
+
+    const studentResults = examResults.filter(
+      (result) =>
+        result.studentid === studentid &&
+        result.examseriesid.toString() === examseriesid.toString()
+    );
+
+    if (studentResults.length === 0) {
+      return { overallGPA: 0, achievement: "N/A" };
+    }
+
+    let totalGPAPoints = 0;
+    let totalCredits = 0;
+
+    studentResults.forEach((result) => {
+      const subject = examSubjects.find(
+        (subj) => subj.examsubjid === result.examsubjid
+      );
+      if (subject && result.marks) {
+        const { grade, gpa } = getGradeAndGPA(result.marks, examGrades);
+        totalGPAPoints += gpa * subject.subjearncredit;
+        totalCredits += subject.subjearncredit;
       }
+    });
+
+    const overallGPA =
+      totalCredits > 0 ? (totalGPAPoints / totalCredits).toFixed(2) : 0;
+
+    const achievement = getOverallAchievement(parseFloat(overallGPA));
+
+    return { overallGPA, achievement };
+  };
+
+  const preparePDFData = (studentId) => {
+    const student = students.find((s) => s.studentid === studentId);
+    if (!student) return { data: [], overallGPA: 0, achievement: "N/A" };
+
+    const currentExamSeries = examSeries.find(
+      (s) => s.examseriesid.toString() === selectedSeries.toString()
+    );
+
+    const results = examSubjects
+      .filter(
+        (subject) =>
+          subject.examseriesid.toString() === selectedSeries.toString()
+      )
+      .map((subject) => {
+        const result = examResults.find(
+          (r) =>
+            r.studentid === studentId && r.examsubjid === subject.examsubjid
+        );
+
+        if (!result) return null;
+
+        const { grade, gpa } = getGradeAndGPA(result.marks, examGrades);
+
+        return {
+          studentname: student.studentname,
+          studentidno: student.studentidno,
+          examseriesdescription: currentExamSeries?.examseriesdescription || "",
+          examseriesstartdate: formatDate(
+            currentExamSeries?.examseriesstartdate || ""
+          ),
+          examseriesenddate: formatDate(
+            currentExamSeries?.examseriesenddate || ""
+          ),
+          subjcode: subject.subjcode,
+          subjdesc: subject.subjdesc,
+          subjearncredit: subject.subjearncredit,
+          subjgrade: grade,
+          subjgpa: gpa,
+          marks: result.marks,
+        };
+      })
+      .filter(Boolean);
+
+    // Calculate overall GPA
+    const totalCredits = results.reduce(
+      (sum, course) => sum + course.subjearncredit,
+      0
+    );
+    const totalGPAPoints = results.reduce(
+      (sum, course) => sum + course.subjgpa * course.subjearncredit,
+      0
+    );
+    const overallGPA =
+      totalCredits > 0 ? (totalGPAPoints / totalCredits).toFixed(2) : "0.00";
+    const achievement = getOverallAchievement(parseFloat(overallGPA));
+
+    return {
+      data: results,
+      overallGPA,
+      achievement,
+      examseriesstartdate: formatDate(
+        currentExamSeries?.examseriesstartdate || ""
+      ),
+      examseriesenddate: formatDate(currentExamSeries?.examseriesenddate || ""),
     };
-    fetchExams();
-  }, []);
+  };
 
-  useEffect(() => {
-    const fetchExamSeries = async () => {
-      if (!selectedExam) return;
-      try {
-        const response = await fetch(`/api/examseries?examid=${selectedExam}`);
-        const data = await response.json();
-        setExamSeries(data.examSeries);
-      } catch (err) {
-        console.error("Failed to fetch exam series:", err);
-      }
-    };
-    fetchExamSeries();
-  }, [selectedExam]);
+  const handleSeriesChange = async (e) => {
+    const selectedOption = e.target.value;
+    setSelectedSeries(selectedOption);
+    if (selectedOption) {
+      setLoading(true);
+      await Promise.all([
+        fetchData(selectedOption),
+        fetchExamGrades(selectedOption),
+      ]);
+      setHasSearched(true);
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
+    } else {
+      setHasSearched(false);
+    }
+  };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest(".search-container")) {
-        setShowStudentDropdown(false);
-        setShowExamDropdown(false);
-        setShowExamSeriesDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleFormSubmit = async (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
-    if (!selectedStudent || !selectedExamSeries) {
+    if (!selectedSeries) {
+      alert("Please select an exam series first");
       return;
     }
-
+    console.log("Searching with keyword:", searchKeyword);
     setLoading(true);
-    try {
-      const response = await fetch(
-        `/api/examresults?studentid=${selectedStudent}&examseriesid=${selectedExamSeries}`
-      );
-      const data = await response.json();
-
-      const examResultsWithStudentData = await Promise.all(
-        data.examResults.map(async (result) => {
-          const subjectResponse = await fetch(
-            `/api/examsubj/${result.examsubjid}`
-          );
-          const subjectData = await subjectResponse.json();
-          
-          return {
-            ...result,
-            studentname: allStudents.find(
-              (student) => student.studentid === selectedStudent
-            )?.studentname || "",
-            studentidno: allStudents.find(
-              (student) => student.studentid === selectedStudent
-            )?.studentidno || "",
-            subjcode: subjectData.subjcode,
-            subjearncredit: subjectData.subjearncredit,
-          };
-        })
-      );
-
-      setExamResults(examResultsWithStudentData);
-    } catch (err) {
-      console.error("Failed to fetch results:", err);
-    } finally {
+    await fetchData(selectedSeries, searchKeyword);
+    setHasSearched(true);
+    setTimeout(() => {
       setLoading(false);
-    }
+    }, 500);
   };
 
-  const filteredStudents = allStudents
-    .filter((student) =>
-      `${student.studentname} ${student.studentidno}`
-        .toLowerCase()
-        .includes(studentSearch.toLowerCase())
-    )
-    .slice(0, displayLimit);
+  const handleGradeClick = (examresultsid) => {
+    console.log("Clicked on grade with Exam Result ID:", examresultsid);
+    setSelectedExamResultId(examresultsid);
+  };
 
-  const filteredExams = exams.filter((exam) =>
-    exam.examname.toLowerCase().includes(examSearch.toLowerCase())
+  const filteredExamSubjects = examSubjects.filter((subject) => {
+    if (selectedSeries !== "all" && subject.examseriesid != selectedSeries) {
+      return false;
+    }
+    return true;
+  });
+
+  const GradeDisplay = ({ grade, marks, gpa }) => (
+    <div className="flex flex-col items-center space-y-2">
+      <div className="flex items-center space-x-2 text-sm">
+        <span
+          className={`text-white px-2 py-1 rounded-lg ${getGradeClass(grade)}`}
+        >
+          {grade}
+        </span>
+        <span className="text-gray-500">|</span>
+        <span className="px-2 py-1 bg-gray-900 text-white rounded-md font-medium">
+          {marks}
+        </span>
+        <span className="text-gray-500">|</span>
+        <span className="px-2 py-1 bg-green-600 text-white rounded-md font-medium">
+          {gpa.toFixed(1)}
+        </span>
+      </div>
+    </div>
   );
 
-  const filteredExamSeries = examSeries.filter((series) =>
-    series.examseriesdescription
-      .toLowerCase()
-      .includes(examSeriesSearch.toLowerCase())
-  );
+  const handleCheckboxChange = async (studentId) => {
+    setSelectedStudents((prev) => {
+      const newSelection = prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId];
+
+      // Prepare PDF data when checkbox is checked
+      if (!prev.includes(studentId)) {
+        const pdfData = preparePDFData(studentId);
+        setPdfDataMap((prevMap) => new Map(prevMap.set(studentId, pdfData)));
+      }
+
+      return newSelection;
+    });
+  };
+
+  const columns = [
+    {
+      Header: "",
+      accessor: "checkbox",
+      className: "w-16 text-center",
+    },
+    {
+      Header: "No",
+      accessor: "no",
+      className: "w-16 text-center",
+    },
+    {
+      Header: "Students",
+      accessor: "studentname",
+      className: "w-64 text-left font-medium",
+    },
+    {
+      Header: "Overall GPA",
+      accessor: "overallGPA",
+      className: "text-center font-bold",
+    },
+    {
+      Header: "Achievement",
+      accessor: "achievement",
+      className: "text-center font-bold",
+    },
+    ...(filteredExamSubjects.length > 0
+      ? filteredExamSubjects.map((subject, index) => ({
+          Header: (
+            <div className="flex flex-col items-center">
+              <span className="font-bold text-gray-900">
+                {subject.subjcode}
+              </span>
+              <span className="text-xs text-gray-500">{subject.subjdesc}</span>
+            </div>
+          ),
+          accessor: `subject${index + 1}`,
+          className: "text-center",
+        }))
+      : [
+          {
+            Header: "No subjects available",
+            accessor: "noSubjects",
+            className: "text-center text-gray-500 italic",
+          },
+        ]),
+  ];
+
+  const data = students
+    .filter((student) => {
+      const studentResults = examResults.filter(
+        (result) => result.studentid === student.studentid
+      );
+      return studentResults.length > 0;
+    })
+    .map((student, index) => {
+      const studentResults = examResults.filter(
+        (result) => result.studentid === student.studentid
+      );
+
+      const subjectsData = filteredExamSubjects.reduce(
+        (acc, subject, index) => {
+          const result = studentResults.find(
+            (res) => res.examsubjid === subject.examsubjid
+          );
+
+          if (result) {
+            const { grade, gpa } = getGradeAndGPA(result.marks, examGrades);
+            acc[`subject${index + 1}`] = (
+              <div onClick={() => handleGradeClick(result.examresultsid)}>
+                <GradeDisplay grade={grade} marks={result.marks} gpa={gpa} />
+              </div>
+            );
+          } else {
+            acc[`subject${index + 1}`] = (
+              <div className="text-gray-400">N/A</div>
+            );
+          }
+          return acc;
+        },
+        {}
+      );
+
+      const { overallGPA, achievement } = calculateOverallStats(
+        student.studentid,
+        selectedSeries
+      );
+
+      return {
+        checkbox: (
+          <input
+            type="checkbox"
+            checked={selectedStudents.includes(student.studentid)}
+            onChange={() => handleCheckboxChange(student.studentid)}
+            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+          />
+        ),
+        no: (currentPage - 1) * pageLimit + index + 1,
+        studentname: (
+          <div className="py-2">
+            <div className="font-medium text-gray-900">
+              {student.studentname}
+            </div>
+            <div className="text-sm text-gray-500">
+              ID: {student.studentidno}
+            </div>
+          </div>
+        ),
+        studentid: student.studentid,
+        ...subjectsData,
+        overallGPA: (
+          <div className="flex flex-col items-center space-y-2">
+            <span className="text-xl font-bold text-blue-500">
+              {overallGPA}
+            </span>
+          </div>
+        ),
+        achievement: <div className="text-md">{achievement}</div>,
+      };
+    });
+
+  const examSeriesOptions = [
+    { value: "", label: "Select Exam Series" },
+    ...examSeries.map((series) => ({
+      value: series.examseriesid,
+      label: series.examseriesdescription,
+    })),
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            Student Transcript
-          </h1>
-        </div>
-      </div>
-
-      <main className="text-gray-700 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow">
-          <div className="p-4 sm:p-6 lg:p-8">
-            <form onSubmit={handleFormSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Student Search */}
-                <div className="search-container relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Student
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Search student..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    value={studentSearch}
-                    onChange={(e) => setStudentSearch(e.target.value)}
-                    onFocus={() => setShowStudentDropdown(true)}
+          {/* Header with justified content */}
+          <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Academic Transcript
+            </h1>
+            {selectedStudents.length > 0 && (
+              <MultiTranscriptDownload
+                selectedStudents={selectedStudents}
+                pdfDataMap={pdfDataMap}
+              />
+            )}
+          </div>
+
+          <div className="p-6 relative overflow-hidden text-gray-700">
+            {/* Modified Form Layout */}
+            <form onSubmit={handleSearch} className="mb-8">
+              <div className="grid grid-cols-4 lg:grid-cols-2 gap-8">
+                {/* Left Side - Exam Series Filter */}
+                <div>
+                  <Dropdown
+                    id="examSeries"
+                    name="examSeries"
+                    label="Exam Series"
+                    options={examSeriesOptions}
+                    value={selectedSeries}
+                    onChange={handleSeriesChange}
+                    className="w-full"
                   />
-                  {showStudentDropdown && filteredStudents.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {filteredStudents.map((student) => (
-                        <div
-                          key={student.studentid}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => {
-                            setSelectedStudent(student.studentid);
-                            setStudentSearch(
-                              `${student.studentname} (${student.studentidno})`
-                            );
-                            setShowStudentDropdown(false);
-                          }}
-                        >
-                          {student.studentname} ({student.studentidno})
-                        </div>
-                      ))}
-                      {allStudents.filter((student) =>
-                        `${student.studentname} ${student.studentidno}`
-                          .toLowerCase()
-                          .includes(studentSearch.toLowerCase())
-                      ).length > displayLimit && (
-                        <div className="px-3 py-2 text-sm text-gray-500 bg-gray-50">
-                          Keep typing to see more results...
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
 
-                {/* Exam Search */}
-                <div className="search-container relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Exam
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Search exam..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    value={examSearch}
-                    onChange={(e) => setExamSearch(e.target.value)}
-                    onFocus={() => setShowExamDropdown(true)}
-                  />
-                  {showExamDropdown && filteredExams.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {filteredExams.map((exam) => (
-                        <div
-                          key={exam.examid}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => {
-                            setSelectedExam(exam.examid);
-                            setExamSearch(exam.examname);
-                            setShowExamDropdown(false);
-                          }}
-                        >
-                          {exam.examname}
-                        </div>
-                      ))}
+                {/* Right Side - Search Input and Button */}
+                <div className="space-y-4">
+                  <div className="relative">
+                    <label
+                      htmlFor="search"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Search Student
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="search"
+                        placeholder="Enter student name..."
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        className="w-full rounded-md border-gray-300 pl-10 pr-4 focus:border-blue-500 focus:ring-blue-500 shadow-sm"
+                      />
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     </div>
-                  )}
-                </div>
-
-                {/* Exam Series Search */}
-                <div className="search-container relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Exam Series
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Search exam series..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    value={examSeriesSearch}
-                    onChange={(e) => setExamSeriesSearch(e.target.value)}
-                    onFocus={() => setShowExamSeriesDropdown(true)}
-                    disabled={!selectedExam}
-                  />
-                  {showExamSeriesDropdown && filteredExamSeries.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {filteredExamSeries.map((series) => (
-                        <div
-                          key={series.examseriesid}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => {
-                            setSelectedExamSeries(series.examseriesid);
-                            setExamSeriesSearch(series.examseriesdescription);
-                            setShowExamSeriesDropdown(false);
-                          }}
-                        >
-                          {series.examseriesdescription}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-end space-x-2">
+                  </div>
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                    className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                   >
-                    <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
-                    Search
+                    Search Records
                   </button>
-
-                  {examResults.length > 0 && (
-                    <PDFDownloadLink
-                      document={<TranscriptPDF data={examResults} />}
-                      fileName={getTranscriptFilename()}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      {({ loading }) =>
-                        loading ? "Loading..." : "Export Transkrip"
-                      }
-                    </PDFDownloadLink>
-                  )}
                 </div>
               </div>
             </form>
 
-            {/* Results Table */}
-            <div className="mt-6">
-              {loading ? (
-                <Loading open={loading} setOpen={setLoading} />
-              ) : (
-                <Table
-                  page={1}
-                  limit={16}
-                  data={examResults}
-                  columns={[
-                    { Header: "Subject", accessor: "subjdesc" },
-                    { Header: "Marks", accessor: "marks" },
-                    { Header: "GPA", accessor: "subjgpa" },
-                    { Header: "Grade", accessor: "subjgrade" },
-                    { Header: "Results", accessor: "subjresults" },
-                    {
-                      Header: "Exam Series",
-                      accessor: "examseriesdescription",
-                    },
-                  ]}
-                />
-              )}
-            </div>
+            {/* Loading Spinner */}
+            <Loading open={loading} setOpen={setLoading} />
+
+            {/* Display Results Table */}
+            {hasSearched && examGrades.length > 0 && (
+              <Table
+                data={data}
+                columns={columns}
+                page={currentPage}
+                limit={pageLimit}
+                detailPage="transcripts"
+                idAccessor="studentid"
+                showNumber={false}
+                showActions={false}
+              />
+            )}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
