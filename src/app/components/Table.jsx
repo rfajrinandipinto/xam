@@ -1,22 +1,37 @@
-// src/components/Table.jsx
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   InformationCircleIcon,
   PencilSquareIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
+import Pagination from "@/app/components/Pagination";
 
 export default function Table({
   data,
   columns,
   page,
   limit,
+  totalPages,
+  onPageChange,
   onEdit,
   onDelete,
   idAccessor,
   detailPage,
-  showActions = true, // New prop with default value
+  showActions = true,
+  showNumber = true,
 }) {
+  const [currentPage, setCurrentPage] = useState(page);
+
+  useEffect(() => {
+    setCurrentPage(page);
+  }, [page]);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    onPageChange(newPage);
+  };
+
   return (
     <div className="mt-8 flex flex-col">
       <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
@@ -25,19 +40,24 @@ export default function Table({
             <table className="min-w-full divide-y divide-gray-300">
               <thead className="bg-gray-50">
                 <tr className="divide-x divide-gray-300">
-                  <th
-                    key="No"
-                    scope="col"
-                    className={`px-3 py-3.5 text-center text-sm font-semibold text-gray-900 w-16`}
-                  >
-                    No
-                  </th>
+                  {showNumber && (
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900 w-16"
+                    >
+                      No
+                    </th>
+                  )}
                   {columns.map((column) => (
                     <th
                       key={column.accessor}
                       scope="col"
-                      className={`px-3 py-3.5 text-sm font-semibold text-gray-900 ${column.className} ${
-                        column.accessor === "studentname" ? "sticky left-0 bg-gray-50 z-10" : ""
+                      className={`px-3 py-3.5 text-sm font-semibold text-gray-900 ${
+                        column.className || ''
+                      } ${
+                        column.accessor === "studentname"
+                          ? "sticky left-0 bg-gray-50 z-10"
+                          : ""
                       }`}
                     >
                       {column.Header}
@@ -59,14 +79,20 @@ export default function Table({
                     key={row[idAccessor]}
                     className="divide-x divide-gray-300"
                   >
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 text-center">
-                      {(page - 1) * limit + index + 1}
-                    </td>
+                    {showNumber && (
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 text-center">
+                        {(currentPage - 1) * limit + index + 1}
+                      </td>
+                    )}
                     {columns.map((column) => (
                       <td
                         key={column.accessor}
-                        className={`whitespace-nowrap px-3 py-4 text-sm text-gray-900 ${column.className} ${
-                          column.accessor === "studentname" ? "sticky left-0 bg-white z-10" : ""
+                        className={`whitespace-nowrap px-3 py-4 text-sm text-gray-900 ${
+                          column.className || ''
+                        } ${
+                          column.accessor === "studentname"
+                            ? "sticky left-0 bg-white z-10"
+                            : ""
                         }`}
                       >
                         {row[column.accessor]}
@@ -111,6 +137,13 @@ export default function Table({
           </div>
         </div>
       </div>
+      {totalPages > 1 && (
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      )}
     </div>
   );
 }
