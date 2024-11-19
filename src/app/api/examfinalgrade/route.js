@@ -7,6 +7,7 @@ export async function GET(request) {
         const search = request.nextUrl.searchParams.get('search') || '';
         const page = parseInt(request.nextUrl.searchParams.get('page')) || 1;
         const limit = parseInt(request.nextUrl.searchParams.get('limit')) || 10;
+        const examseriesid = request.nextUrl.searchParams.get('examseriesid');
         const offset = (page - 1) * limit;
 
         let query = `
@@ -15,6 +16,11 @@ export async function GET(request) {
             INNER JOIN examseries ON examfinalgrade.examseriesid = examseries.examseriesid
         `;
         let queryParams = [];
+
+        if (examseriesid) {
+            query += ' AND examfinalgrade.examseriesid = ?';
+            queryParams.push(examseriesid);
+        }
 
         if (search) {
             query += ' WHERE examseriesdescription LIKE ?';
