@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   summaryRightColumn: {
-    width: '25%',
+    width: '75%',
     textAlign: 'right',
   },
   signature: {
@@ -170,34 +170,14 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   signatureText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'Tahoma',
     textAlign: 'center',
   },
 });
 
-const TranscriptPDF = ({ data }) => {
-  // Calculate overall GPA
-  const calculateOverallGPA = () => {
-    if (!data || data.length === 0) return 0;
-    
-    const totalGPA = data.reduce((sum, course) => sum + parseFloat(course.subjgpa || 0), 0);
-    return (totalGPA / data.length).toFixed(2);
-  };
-
-  // Determine achievement level based on GPA
-  const getAchievement = (gpa) => {
-    const gpaNum = parseFloat(gpa);
-    if (gpaNum >= 3.67) return 'CEMERLANG';
-    if (gpaNum >= 3.00) return 'SANGAT BAIK';
-    if (gpaNum >= 2.00) return 'BAIK';
-    if (gpaNum >= 1.00) return 'LULUS';
-    return 'GAGAL';
-  };
-
-  // Get student info from first result
+const TranscriptPDF = ({ data, overallGPA, achievement, examStartDate, examEndDate }) => {
   const studentInfo = data && data.length > 0 ? data[0] : {};
-  const overallGPA = calculateOverallGPA();
 
   return (
     <Document>
@@ -231,7 +211,7 @@ const TranscriptPDF = ({ data }) => {
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.label}>SESI AKADEMIK</Text>
-            <Text style={styles.value}>: {studentInfo.examseriesdescription || ''}</Text>
+            <Text style={styles.value}>: {studentInfo.examseriesdescription || ''} - ({examStartDate} - {examEndDate})</Text>
           </View>
         </View>
 
@@ -258,7 +238,7 @@ const TranscriptPDF = ({ data }) => {
 
             <View style={styles.tableSummaryRow}>
               <Text style={styles.summaryLeftColumn}>GPA KESELURUHAN: {overallGPA}</Text>
-              <Text style={styles.summaryRightColumn}>PENCAPAIAN: {getAchievement(overallGPA)}</Text>
+              <Text style={styles.summaryRightColumn}>PENCAPAIAN: {achievement}</Text>
             </View>
           </View>
         </View>
