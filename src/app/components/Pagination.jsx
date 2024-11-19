@@ -2,6 +2,10 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 export default function Pagination({ page, totalPages, onPageChange }) {
+  if (!totalPages || totalPages < 1) {
+    return null; // Do not render pagination if totalPages is invalid
+  }
+
   return (
     <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between mt-4">
       <div>
