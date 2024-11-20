@@ -9,9 +9,13 @@ import {
   getGradeAndGPA,
   getOverallAchievement,
   getGradeClass,
+  calculateTotals,
+  calculateOverallGPA,
+  calculateOverallMarks,
 } from "../utils/examResult";
 import MultiTranscriptDownload from "../components/MultiTranscriptDownload";
 import { formatDate } from "../utils/formatDate";
+import ErrorState from "../components/ErrorState";
 
 export default function Transcript() {
   const [students, setStudents] = useState([]);
@@ -47,6 +51,7 @@ export default function Transcript() {
       setExamSubjects(data.examSubjects || []);
       setExamResults(data.examResults || []);
       setExamSeries(data.examSeries || []);
+      console.log(data.examResults);
 
       if (examseriesid) {
         const selectedData = data.examSeries?.find(
@@ -95,7 +100,13 @@ export default function Transcript() {
 
   const calculateOverallStats = (studentid, examseriesid) => {
     if (examGrades.length === 0) {
-      return { overallGPA: 0, achievement: "N/A" };
+      return {
+        overallGPA: 0,
+        overall: 0,
+        achievement: "N/A",
+        totalCredits: 0,
+        totalMarks: 0,
+      };
     }
 
     const studentResults = examResults.filter(
@@ -105,11 +116,18 @@ export default function Transcript() {
     );
 
     if (studentResults.length === 0) {
-      return { overallGPA: 0, achievement: "N/A" };
+      return {
+        overallGPA: 0,
+        overall: 0,
+        achievement: "N/A",
+        totalCredits: 0,
+        totalMarks: 0,
+      };
     }
 
     let totalGPAPoints = 0;
     let totalCredits = 0;
+    let totalMarks = 0;
 
     studentResults.forEach((result) => {
       const subject = examSubjects.find(
@@ -119,15 +137,22 @@ export default function Transcript() {
         const { grade, gpa } = getGradeAndGPA(result.marks, examGrades);
         totalGPAPoints += gpa * subject.subjearncredit;
         totalCredits += subject.subjearncredit;
+        totalMarks += parseFloat(result.marks);
       }
     });
 
+    // Calculate overall GPA (weighted)
     const overallGPA =
       totalCredits > 0 ? (totalGPAPoints / totalCredits).toFixed(2) : 0;
 
-    const achievement = getOverallAchievement(parseFloat(overallGPA));
+    // Calculate overall (weighted marks out of total credits)
+    const overall =
+      totalCredits > 0 ? (totalMarks / totalCredits).toFixed(2) : 0;
 
-    return { overallGPA, achievement };
+    // Determine achievement based on overall GPA
+    const achievement = getOverallAchievement(overall, examGrades);
+
+    return { overallGPA: overall, achievement: achievement };
   };
 
   const preparePDFData = (studentId) => {
@@ -173,22 +198,15 @@ export default function Transcript() {
       })
       .filter(Boolean);
 
-    // Calculate overall GPA
-    const totalCredits = results.reduce(
-      (sum, course) => sum + course.subjearncredit,
-      0
-    );
-    const totalGPAPoints = results.reduce(
-      (sum, course) => sum + course.subjgpa * course.subjearncredit,
-      0
-    );
-    const overallGPA =
-      totalCredits > 0 ? (totalGPAPoints / totalCredits).toFixed(2) : "0.00";
-    const achievement = getOverallAchievement(parseFloat(overallGPA));
+    const { totalCredits, totalGPAPoints, totalMarks } =
+      calculateTotals(results);
+    // const overallGPA = calculateOverallGPA(totalGPAPoints, totalCredits);
+    const overall = calculateOverallMarks(totalMarks, totalCredits);
+    const achievement = getOverallAchievement(overall, examGrades);
 
     return {
       data: results,
-      overallGPA,
+      overallGPA: overall,
       achievement,
       examseriesstartdate: formatDate(
         currentExamSeries?.examseriesstartdate || ""
@@ -207,7 +225,7 @@ export default function Transcript() {
   const handleSeriesChange = async (e) => {
     const selectedOption = e.target.value;
     setSelectedSeries(selectedOption);
-    
+
     if (selectedOption) {
       setLoading(true);
       await Promise.all([
@@ -227,7 +245,9 @@ export default function Transcript() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!selectedSeries) {
-      alert("Please select an exam series first");
+      return;
+    }
+    if (examGrades.length === 0) {
       return;
     }
     console.log("Searching with keyword:", searchKeyword);
@@ -265,7 +285,7 @@ export default function Transcript() {
         </span>
         <span className="text-gray-500">|</span>
         <span className="px-2 py-1 bg-green-600 text-white rounded-md font-medium">
-          {gpa.toFixed(1)}
+          {gpa}
         </span>
       </div>
     </div>
@@ -362,7 +382,11 @@ export default function Transcript() {
             const { grade, gpa } = getGradeAndGPA(result.marks, examGrades);
             acc[`subject${index + 1}`] = (
               <div onClick={() => handleGradeClick(result.examresultsid)}>
-                <GradeDisplay grade={grade} marks={result.marks} gpa={gpa} />
+                <GradeDisplay
+                  grade={result.subjgrade}
+                  marks={result.marks}
+                  gpa={result.subjgpa}
+                />
               </div>
             );
           } else {
@@ -464,20 +488,27 @@ export default function Transcript() {
                     <div className="px-4 py-5 sm:p-3">
                       <dl className="space-y-3">
                         {[
-                          { label: 'Exam Series', value: selectedSeriesData.examseriesdescription },
-                          { label: 'Exam', value: selectedSeriesData.examname },
                           {
-                            label: 'Start Date',
+                            label: "Exam Series",
+                            value: selectedSeriesData.examseriesdescription,
+                          },
+                          { label: "Exam", value: selectedSeriesData.examname },
+                          {
+                            label: "Start Date",
                             value: selectedSeriesData.examseriesstartdate
-                              ? new Date(selectedSeriesData.examseriesstartdate).toLocaleDateString("en-GB")
-                              : "-"
+                              ? new Date(
+                                  selectedSeriesData.examseriesstartdate
+                                ).toLocaleDateString("en-GB")
+                              : "-",
                           },
                           {
-                            label: 'End Date',
+                            label: "End Date",
                             value: selectedSeriesData.examseriesenddate
-                              ? new Date(selectedSeriesData.examseriesenddate).toLocaleDateString("en-GB")
-                              : "-"
-                          }
+                              ? new Date(
+                                  selectedSeriesData.examseriesenddate
+                                ).toLocaleDateString("en-GB")
+                              : "-",
+                          },
                         ].map((item, index) => (
                           <div key={index} className="flex">
                             <dt className="w-32 flex-shrink-0 text-sm font-medium text-gray-700">
@@ -492,7 +523,6 @@ export default function Transcript() {
                     </div>
                   </div>
                 )}
-
               </div>
 
               {/* Right Column */}
@@ -535,37 +565,45 @@ export default function Transcript() {
 
             {/* Table Section */}
             {hasSearched && (
-              <div className="mt-8">
-              {/* {data.length == 0 && (
-                <div className="text-xl sm:text-2xl font-semibold text-black">
-                  No data
-                </div>
-              )} */}
-              {examGrades.length == 0 && (
-                <div className="text-xl sm:text-2xl font-semibold text-black">
-                  Please add Exam Final Grades values first to calculate student Grade and GPA
-                </div>
-              )}
-                <div className="relative overflow-hidden">
-                  <div className="overflow-x-auto ring-1 ring-gray-300 rounded-lg">
-                    <div className="inline-block min-w-full align-middle">
-                      <Table
-                        data={data}
-                        columns={columns}
-                        page={currentPage}
-                        limit={pageLimit}
-                        currentPage={currentPage}
-                        onPageChange={(newPage) => setCurrentPage(newPage)}
-                        detailPage="transcripts"
-                        idAccessor="studentid"
-                        showNumber={false}
-                        showActions={false}
-                        className="min-w-full divide-y divide-gray-300"
-                      />
+              <>
+                {!selectedSeries && (
+                  <ErrorState
+                    type="no-series"
+                    message="Please select an exam series to view student transcripts."
+                    suggestion="Use the dropdown menu above to choose an exam series."
+                  />
+                )}
+
+                {examGrades.length === 0 && (
+                  <ErrorState
+                    type="no-grades"
+                    message="Exam grade configuration is missing for this exam series."
+                    suggestion="Please configure the exam final grades in the grade management section before viewing transcripts."
+                  />
+                )}
+
+                {selectedSeries && examGrades.length > 0 && (
+                  <div className="relative overflow-hidden">
+                    <div className="overflow-x-auto ring-1 ring-gray-300 rounded-lg">
+                      <div className="inline-block min-w-full align-middle">
+                        <Table
+                          data={data}
+                          columns={columns}
+                          page={currentPage}
+                          limit={pageLimit}
+                          currentPage={currentPage}
+                          onPageChange={(newPage) => setCurrentPage(newPage)}
+                          detailPage="transcripts"
+                          idAccessor="studentid"
+                          showNumber={false}
+                          showActions={false}
+                          className="min-w-full divide-y divide-gray-300"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                )}
+              </>
             )}
           </div>
         </div>
