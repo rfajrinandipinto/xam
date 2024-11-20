@@ -1,38 +1,88 @@
+export const calculateTotals = (results) => {
+  return results.reduce(
+    (totals, course) => {
+      totals.totalCredits += course.subjearncredit;
+      totals.totalGPAPoints += course.subjgpa * course.subjearncredit;
+      totals.totalMarks += parseFloat(course.marks);
+      return totals;
+    },
+    { totalCredits: 0, totalGPAPoints: 0, totalMarks: 0 }
+  );
+};
+
+export const calculateOverallGPA = (totalGPAPoints, totalCredits) => {
+  return totalCredits > 0 ? (totalGPAPoints / totalCredits).toFixed(2) : "0.00";
+};
+
+export const calculateOverallMarks = (totalMarks, totalCredits) => {
+  return totalCredits > 0 ? (totalMarks / totalCredits).toFixed(2) : "0.00";
+};
+
 export function getGradeAndGPA(marks, examGrades = []) {
-  if (!marks || marks === "" || !examGrades || examGrades.length === 0) {
-    return { grade: "N/A", gpa: 0 };
+  // Handle invalid or missing inputs
+  if (!examGrades || examGrades.length === 0) {
+    return {
+      grade: "N/A",
+      gpa: 0
+    };
   }
-
-  // Convert marks to number
-  const numericMarks = parseFloat(marks);
   
-  // Find matching grade range
-  const matchingGrade = examGrades.find(grade => {
-    const finalPercent = parseFloat(grade.finalpercent);
-    const nextGrade = examGrades[grade.examfinalgradeseq - 2];
-    const lowerBound = nextGrade ? parseFloat(nextGrade.finalpercent) : 0;
+  // Validate marks
+  const numericMarks = parseFloat(marks);
+  if (isNaN(numericMarks) || numericMarks < 0 || numericMarks > 100) {
+    return {
+      grade: "N/A",
+      gpa: 0
+    };
+  }
+  
+  try {
+    // Sort the data to ensure it is in ascending order of finalpercent
+    const sortedGrades = examGrades
+      .filter(grade => 
+        grade.finalpercent && 
+        grade.overallgradepoint && 
+        grade.overallgrade
+      )
+      .map(grade => ({
+        ...grade,
+        finalpercent: parseFloat(grade.finalpercent),
+        overallgradepoint: parseFloat(grade.overallgradepoint),
+      }))
+      .sort((a, b) => a.finalpercent - b.finalpercent);
     
-    return numericMarks >= lowerBound && numericMarks < finalPercent;
-  });
-
-  if (matchingGrade) {
+    if (sortedGrades.length === 0) {
+      return {
+        grade: "N/A",
+        gpa: 0
+      };
+    }
+    
+    // Find the appropriate grade
+    const result = sortedGrades.find(
+      (grade, index) =>
+        numericMarks <= grade.finalpercent &&
+        (index === 0 || numericMarks > sortedGrades[index - 1].finalpercent)
+    );
+    
+    if (!result) {
+      return {
+        grade: sortedGrades[sortedGrades.length - 1].overallgrade,
+        gpa: sortedGrades[sortedGrades.length - 1].overallgradepoint
+      };
+    }
+    
     return {
-      grade: matchingGrade.overallgrade,
-      gpa: parseFloat(matchingGrade.overallgradepoint)
+      grade: result.overallgrade,
+      gpa: result.overallgradepoint,
+    };
+  } catch (error) {
+    console.error("Error in getGradeAndGPA:", error);
+    return {
+      grade: "N/A",
+      gpa: 0
     };
   }
-
-  // Handle 100% or perfect score
-  if (numericMarks === 100) {
-    const topGrade = examGrades[examGrades.length - 1];
-    return {
-      grade: topGrade.overallgrade,
-      gpa: parseFloat(topGrade.overallgradepoint)
-    };
-  }
-
-  // Default case if no match found
-  return { grade: "F", gpa: 0 };
 }
 
 export function getGradeClass(grade) {
@@ -57,14 +107,38 @@ export function getGradeClass(grade) {
   }
 }
 
-export function getOverallAchievement(gpa) {
-  if (isNaN(gpa) || gpa === 0) return "GAGAL";
+export function getOverallAchievement(gpa, examGrades = []) {
+  // Handle invalid or missing inputs
+  if (!examGrades || examGrades.length === 0) {
+    return "N/A";
+  }
+  
+  if (isNaN(gpa) || gpa === 0) {
+    return "GAGAL";
+  }
   
   const numericGPA = parseFloat(gpa);
-  if (numericGPA >= 3.6) return "CEMERLANG";
-  if (numericGPA >= 3.3) return "SANGAT BAIK";
-  if (numericGPA >= 2.3) return "BAIK";
-  if (numericGPA >= 2.0) return "MEMUASKAN";
-  if (numericGPA >= 1.6) return "LULUS";
-  return "GAGAL";
+  
+  try {
+    // Sort grades by overallgradepoint in descending order
+    const sortedGrades = [...examGrades]
+      .filter(grade => grade.overallgradepoint) // Filter out invalid grades
+      .sort((a, b) => 
+        parseFloat(b.overallgradepoint) - parseFloat(a.overallgradepoint)
+      );
+    
+    if (sortedGrades.length === 0) {
+      return "N/A";
+    }
+    
+    // Find the first grade where the GPA is greater than or equal to the overallgradepoint
+    const grade = sortedGrades.find(grade => 
+      numericGPA >= parseFloat(grade.overallgradepoint)
+    );
+    
+    return grade ? grade.overallrank : "GAGAL";
+  } catch (error) {
+    console.error("Error in getOverallAchievement:", error);
+    return "N/A";
+  }
 }
