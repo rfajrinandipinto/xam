@@ -130,12 +130,12 @@ export default function StudentsList() {
           entityData={selectedStudent}
         />
       )}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 pb-4 w-">
+      <div className="mx-auto px-4 sm:px-6 md:px-24 pb-4 ">
         <h1 className="text-2xl font-semibold text-gray-900 ">
           Students Lists
         </h1>
       </div>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
+      <div className="mx-auto px-4 sm:px-6 md:px-24 pb-4 ">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
             <div className="flex justify-between">
@@ -173,15 +173,12 @@ export default function StudentsList() {
           columns={columns}
           page={page}
           limit={limit}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
           onEdit={openEditModal}
           onDelete={openDeleteModal}
           idAccessor="studentid"
           detailPage="students"
-        />
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
         />
       </div>
     </>

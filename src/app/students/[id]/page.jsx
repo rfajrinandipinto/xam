@@ -163,12 +163,12 @@ export default function StudentDetails({ params }) {
           subjects={examSubjects}
         />
       )}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 pb-4">
+      <div className="mx-auto px-4 sm:px-6 md:px-24 pb-4 ">
         <h1 className="text-2xl font-semibold text-gray-900 ">
           Student Details
         </h1>
       </div>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
+      <div className="mx-auto px-4 sm:px-6 md:px-24 pb-4 ">
         <div className="flex flex-col">
           <div className="overflow-x-auto ">
             <div className="inline-block min-w-full py-2 align-middle">

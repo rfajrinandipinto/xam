@@ -1,20 +1,17 @@
 import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import {
-  ExclamationTriangleIcon,
-  XMarkIcon,
-  UserPlusIcon,
-} from "@heroicons/react/24/outline";
+import { XMarkIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import Dropdown from "@/app/components/Dropdown";
 import { useAlert } from "@/app/context/AlertContext";
 
-export default function Add_exams_grades({ open, setOpen, subjects, onGradeAdded }) {
+export default function Add_exams_grades({ open, setOpen, onGradeAdded }) {
   const [examSeries, setExamSeries] = useState([]);
   const [students, setStudents] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedSeries, setSelectedSeries] = useState("");
-  const [filteredSubjects, setFilteredSubjects] = useState(subjects);
-  const [subjectID, setSubjectID] = useState(subjects[0]?.examsubjid || "");
+  const [filteredSubjects, setFilteredSubjects] = useState([]);
+  const [subjectID, setSubjectID] = useState("");
   const [grades, setGrades] = useState([]);
   const [mark, setMark] = useState(0);
   const [selectedGrade, setSelectedGrade] = useState({});
@@ -44,31 +41,33 @@ export default function Add_exams_grades({ open, setOpen, subjects, onGradeAdded
   }, []);
 
   useEffect(() => {
+    const fetchSubjects = async () => {
+      const response = await fetch(
+        `/api/examsubj?examseriesid=${selectedSeries}`
+      );
+      const data = await response.json();
+      setSubjects(data.examSubjs || []);
+      setFilteredSubjects(data.examSubjs || []);
+      if (data.examSubjs.length > 0) {
+        setSubjectID(data.examSubjs[0].examsubjid);
+      }
+    };
+
+    if (selectedSeries) {
+      fetchSubjects();
+    }
+  }, [selectedSeries]);
+
+  useEffect(() => {
     const fetchGrades = async () => {
       const response = await fetch(`/api/subjgrade?subjectID=${subjectID}`);
       const data = await response.json();
       setGrades(data.subjGrades || []);
     };
-
     if (subjectID) {
       fetchGrades();
     }
   }, [subjectID]);
-
-  useEffect(() => {
-    if (selectedSeries) {
-      const filtered = subjects.filter(
-        (sub) => sub.examseriesid === parseInt(selectedSeries)
-      );
-      setFilteredSubjects(filtered);
-      setSubjectID(filtered[0]?.examsubjid || "");
-    } else {
-      setFilteredSubjects(subjects);
-      setSubjectID(subjects[0]?.examsubjid || "");
-    }
-  }, [selectedSeries, subjects]);
-
-  useEffect(() => {}, [selectedSeries, selectedStudent]);
 
   const findGrade = (mark) => {
     const sortedGrades = [...grades].sort((a, b) => b.subjmin - a.subjmin);

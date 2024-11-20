@@ -50,3 +50,20 @@ export async function PUT(req, { params }) {
         return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
     }
 }
+
+export async function DELETE(request, { params }) {
+    const { id } = params;
+
+    try {
+        // Soft delete the exam result by setting the active field to 0
+        await pool.query(
+            'UPDATE examresults SET active = 0 WHERE examresultsid = ?',
+            [id]
+        );
+
+        return NextResponse.json({ message: 'Exam result deleted successfully' });
+    } catch (error) {
+        console.error('Database error:', error);
+        return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+    }
+}

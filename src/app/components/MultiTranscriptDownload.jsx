@@ -24,6 +24,9 @@ console.log(pdfDataMap)
             data={pdfData.data}
             overallGPA={pdfData.overallGPA}
             achievement={pdfData.achievement}
+            examStartDate={pdfData.examseriesstartdate}
+            examEndDate={pdfData.examseriesenddate}
+
           />
         ).toBlob();
 

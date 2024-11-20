@@ -21,7 +21,6 @@ export default function Transcript() {
   const [examGrades, setExamGrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState("");
-  const [selectedSeriesData, setSelectedSeriesData] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedExamResultId, setSelectedExamResultId] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -30,47 +29,39 @@ export default function Transcript() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageLimit] = useState(10);
 
-  const fetchData = async (examseriesid = null, keyword = "", page = 1) => {
-    try {
-      let url = `/api/dashboard?page=${page}&limit=${pageLimit}`;
-      if (examseriesid && examseriesid !== "all") {
-        url += `&examseriesid=${examseriesid}`;
-      }
-      if (keyword) {
-        url += `&search=${keyword}`;
-      }
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      setStudents(data.students || []);
-      setExamSubjects(data.examSubjects || []);
-      setExamResults(data.examResults || []);
-      setExamSeries(data.examSeries || []);
-
-      if (examseriesid) {
-        const selectedData = data.examSeries?.find(
-          (series) => series.examseriesid.toString() === examseriesid.toString()
-        );
-        setSelectedSeriesData(selectedData || null);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
+  const fetchData = async (examseriesid = null, keyword = "") => {
+    let url = `/api/dashboard?`;
+    if (examseriesid && examseriesid !== "all") {
+      url += `&examseriesid=${examseriesid}`;
     }
+    if (keyword) {
+      url += `&search=${keyword}`;
+    }
+
+    console.log("Fetching data with URL:", url);
+    const response = await fetch(url);
+    const data = await response.json();
+    console.log("Fetched data:", data);
+
+    setStudents(data.students || []);
+    setExamSubjects(data.examSubjects || []);
+    setExamResults(data.examResults || []);
+    setExamSeries(data.examSeries || []);
   };
 
   const fetchExamGrades = async (examseriesid = null) => {
     try {
       const url = examseriesid
         ? `/api/examfinalgrade?examseriesid=${examseriesid}`
-        : `/api/examfinalgrade`;
+        : '/api/examfinalgrade';
       const response = await fetch(url);
       const data = await response.json();
+      console.log("Exam grades fetched:", data);
       setExamGrades(data.examFinalGrades || []);
     } catch (error) {
       console.error("Failed to fetch exam grades:", error);
     }
-  };
+  };  
 
   useEffect(() => {
     const loadData = async () => {
@@ -83,15 +74,6 @@ export default function Transcript() {
 
     loadData();
   }, []);
-
-  useEffect(() => {
-    if (selectedSeries && examSeries.length > 0) {
-      const selectedData = examSeries.find(
-        (series) => series.examseriesid.toString() === selectedSeries.toString()
-      );
-      setSelectedSeriesData(selectedData || null);
-    }
-  }, [selectedSeries, examSeries]);
 
   const calculateOverallStats = (studentid, examseriesid) => {
     if (examGrades.length === 0) {
@@ -197,17 +179,9 @@ export default function Transcript() {
     };
   };
 
-  const updateSelectedSeriesData = (seriesId) => {
-    const selectedData = examSeries.find(
-      (series) => series.examseriesid.toString() === seriesId.toString()
-    );
-    setSelectedSeriesData(selectedData || null);
-  };
-
   const handleSeriesChange = async (e) => {
     const selectedOption = e.target.value;
     setSelectedSeries(selectedOption);
-    
     if (selectedOption) {
       setLoading(true);
       await Promise.all([
@@ -220,7 +194,6 @@ export default function Transcript() {
       }, 500);
     } else {
       setHasSearched(false);
-      setSelectedSeriesData(null);
     }
   };
 
@@ -287,14 +260,9 @@ export default function Transcript() {
     });
   };
 
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
-    fetchData(selectedSeries, searchKeyword, newPage);
-  };
-
   const columns = [
     {
-      Header: "#",
+      Header: "",
       accessor: "checkbox",
       className: "w-16 text-center",
     },
@@ -424,33 +392,30 @@ export default function Transcript() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* Header */}
-          <div className="border-b border-gray-200 px-4 sm:px-6 py-4 flex flex-wrap justify-between items-center gap-4">
-            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
+        <div className="bg-white rounded-lg shadow">
+          {/* Header with justified content */}
+          <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+            <h1 className="text-2xl font-semibold text-gray-900">
               Academic Transcript
             </h1>
-            {selectedStudents?.length > 0 && (
-              <div className="flex-shrink-0">
-                <MultiTranscriptDownload
-                  selectedStudents={selectedStudents}
-                  pdfDataMap={pdfDataMap}
-                />
-              </div>
+            {selectedStudents.length > 0 && (
+              <MultiTranscriptDownload
+                selectedStudents={selectedStudents}
+                pdfDataMap={pdfDataMap}
+              />
             )}
           </div>
 
-          {/* Content Area */}
-          <div className="px-4 sm:px-6 lg:px-8 py-6">
-            <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-8">
-              {/* Left Column */}
-              <div className="flex flex-col space-y-4">
-                {/* Exam Series Dropdown */}
-                <div className="max-w-xs">
+          <div className="p-6 relative overflow-hidden text-gray-700">
+            {/* Modified Form Layout */}
+            <form onSubmit={handleSearch} className="mb-8">
+              <div className="grid grid-cols-4 lg:grid-cols-2 gap-8">
+                {/* Left Side - Exam Series Filter */}
+                <div>
                   <Dropdown
                     id="examSeries"
                     name="examSeries"
-                    label="Select Exam Series"
+                    label="Exam Series"
                     options={examSeriesOptions}
                     value={selectedSeries}
                     onChange={handleSeriesChange}
@@ -458,114 +423,52 @@ export default function Transcript() {
                   />
                 </div>
 
-                {/* Info Table */}
-                {selectedSeries && selectedSeriesData && (
-                  <div className="bg-indigo-100 rounded-lg shadow-sm text-black w-full sm:w-1/2">
-                    <div className="px-4 py-5 sm:p-3">
-                      <dl className="space-y-3">
-                        {[
-                          { label: 'Exam Series', value: selectedSeriesData.examseriesdescription },
-                          { label: 'Exam', value: selectedSeriesData.examname },
-                          {
-                            label: 'Start Date',
-                            value: selectedSeriesData.examseriesstartdate
-                              ? new Date(selectedSeriesData.examseriesstartdate).toLocaleDateString("en-GB")
-                              : "-"
-                          },
-                          {
-                            label: 'End Date',
-                            value: selectedSeriesData.examseriesenddate
-                              ? new Date(selectedSeriesData.examseriesenddate).toLocaleDateString("en-GB")
-                              : "-"
-                          }
-                        ].map((item, index) => (
-                          <div key={index} className="flex">
-                            <dt className="w-32 flex-shrink-0 text-sm font-medium text-gray-700">
-                              {item.label}:
-                            </dt>
-                            <dd className="text-sm text-gray-900">
-                              {item.value}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Right Column */}
-              <div className="lg:flex lg:items-start lg:justify-end">
-                <div className="w-full max-w-md">
-                  <label
-                    htmlFor="search"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Search Student
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-grow">
+                {/* Right Side - Search Input and Button */}
+                <div className="space-y-4">
+                  <div className="relative">
+                    <label
+                      htmlFor="search"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Search Student
+                    </label>
+                    <div className="relative">
                       <input
                         type="text"
                         id="search"
                         placeholder="Enter student name..."
                         value={searchKeyword}
                         onChange={(e) => setSearchKeyword(e.target.value)}
-                        className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        className="w-full rounded-md border-gray-300 pl-10 pr-4 focus:border-blue-500 focus:ring-blue-500 shadow-sm"
                       />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                        <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-                      </div>
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleSearch}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      Search
-                    </button>
                   </div>
+                  <button
+                    type="submit"
+                    className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  >
+                    Search Records
+                  </button>
                 </div>
               </div>
-            </div>
+            </form>
 
             {/* Loading Spinner */}
             <Loading open={loading} setOpen={setLoading} />
 
-            {/* Table Section */}
-            {hasSearched && (
-              <div className="mt-8">
-              {/* {data.length == 0 && (
-                <div className="text-xl sm:text-2xl font-semibold text-black">
-                  No data
-                </div>
-              )} */}
-              {examGrades.length == 0 && (
-                <div className="text-xl sm:text-2xl font-semibold text-black">
-                  Please add Exam Final Grades values first to calculate student Grade and GPA
-                </div>
-              )}
-                <div className="relative overflow-hidden">
-                  <div className="overflow-x-auto ring-1 ring-gray-300 rounded-lg">
-                    <div className="inline-block min-w-full align-middle">
-                      <Table
-                        data={data}
-                        columns={columns}
-                        page={currentPage}
-                        limit={pageLimit}
-                        currentPage={currentPage}
-                        onPageChange={(newPage) => setCurrentPage(newPage)}
-                        detailPage="transcripts"
-                        idAccessor="studentid"
-                        showNumber={false}
-                        showActions={false}
-                        className="min-w-full divide-y divide-gray-300"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* Display Results Table */}
+            {hasSearched && examGrades.length > 0 && (
+              <Table
+                data={data}
+                columns={columns}
+                page={currentPage}
+                limit={pageLimit}
+                detailPage="transcripts"
+                idAccessor="studentid"
+                showNumber={false}
+                showActions={false}
+              />
             )}
           </div>
         </div>

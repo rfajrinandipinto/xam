@@ -6,18 +6,32 @@ export async function GET(request) {
     try {
         const search = request.nextUrl.searchParams.get('search') || '';
         const studentid = request.nextUrl.searchParams.get('studentid') || '';
-        const examseriesid = request.nextUrl.searchParams.get('examseriesid') || '';
+        let examseriesid = request.nextUrl.searchParams.get('examseriesid') || '';
         const subjectid = request.nextUrl.searchParams.get('subjectid') || '';
         const examid = request.nextUrl.searchParams.get('examid') || '';
         const page = parseInt(request.nextUrl.searchParams.get('page')) || 1;
-        const limit = parseInt(request.nextUrl.searchParams.get('limit')) || 999;
+        const limit = 999;
         const offset = (page - 1) * limit;
 
+        // Fetch the latest exam series if examseriesid is not specified
+        if (!examseriesid) {
+            const [latestExamSeries] = await pool.query(`
+                SELECT examseriesid 
+                FROM examseries 
+                WHERE active = 1
+                ORDER BY examseriesstartdate DESC 
+                LIMIT 1
+            `);
+            if (latestExamSeries.length > 0) {
+                examseriesid = latestExamSeries[0].examseriesid;
+            }
+        }
+
         // Fetch students
-        let studentsQuery = 'SELECT * FROM students';
+        let studentsQuery = 'SELECT * FROM students WHERE active = 1';
         let studentsParams = [];
         if (search) {
-            studentsQuery += ' WHERE studentname LIKE ?';
+            studentsQuery += ' AND studentname LIKE ?';
             studentsParams.push(`%${search}%`);
         }
         const [students] = await pool.query(studentsQuery, studentsParams);
@@ -27,10 +41,11 @@ export async function GET(request) {
             SELECT examsubj.*, examseries.examid 
             FROM examsubj 
             INNER JOIN examseries ON examsubj.examseriesid = examseries.examseriesid
+            WHERE examsubj.active = 1 AND examseries.active = 1
         `;
         let examSubjectsParams = [];
         if (examseriesid) {
-            examSubjectsQuery += ' WHERE examsubj.examseriesid = ?';
+            examSubjectsQuery += ' AND examsubj.examseriesid = ?';
             examSubjectsParams.push(examseriesid);
         }
         const [examSubjects] = await pool.query(examSubjectsQuery, examSubjectsParams);
@@ -41,10 +56,10 @@ export async function GET(request) {
             FROM examresults 
             INNER JOIN examseries ON examresults.examseriesid = examseries.examseriesid
             INNER JOIN examsubj ON examresults.examsubjid = examsubj.examsubjid
+            WHERE examresults.active = 1 AND examseries.active = 1 AND examsubj.active = 1
         `;
         let examResultsParams = [];
         if (studentid || examseriesid || subjectid || examid) {
-            examResultsQuery += ' WHERE';
             const conditions = [];
             if (studentid) {
                 conditions.push(' examresults.studentid = ?');
@@ -62,23 +77,24 @@ export async function GET(request) {
                 conditions.push(' examseries.examid = ?');
                 examResultsParams.push(examid);
             }
-            examResultsQuery += conditions.join(' AND');
+            examResultsQuery += ' AND' + conditions.join(' AND');
         }
         examResultsQuery += ' LIMIT ? OFFSET ?';
         examResultsParams.push(limit, offset);
         const [examResults] = await pool.query(examResultsQuery, examResultsParams);
 
-        // Fetch exam series
-        let examSeriesQuery = 'SELECT * FROM examseries';
-        let examSeriesParams = [];
-        if (examid) {
-            examSeriesQuery += ' WHERE examid = ?';
-            examSeriesParams.push(examid);
-        }
-        const [examSeries] = await pool.query(examSeriesQuery, examSeriesParams);
+        // Fetch exam series with exam name
+        let examSeriesQuery = `
+            SELECT examseries.*, exam.examname 
+            FROM examseries 
+            INNER JOIN exam ON examseries.examid = exam.examid 
+            WHERE examseries.active = 1
+            ORDER BY examseries.examseriesstartdate DESC
+        `;
+        const [examSeries] = await pool.query(examSeriesQuery);
 
         // Fetch exams
-        const [exams] = await pool.query('SELECT * FROM exam');
+        const [exams] = await pool.query('SELECT * FROM exam WHERE active = 1');
 
         return NextResponse.json({
             students,
